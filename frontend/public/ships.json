@@ -1,0 +1,977 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     57.259,
+     26.002
+    ]
+   },
+   "properties": {
+    "mmsi": 419000100,
+    "name": "MT STAR GLORY",
+    "type": "LPG Carrier",
+    "course": 318,
+    "speed": 14.9,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     55.191,
+     26.698
+    ]
+   },
+   "properties": {
+    "mmsi": 419000101,
+    "name": "MT SWARNA STAR",
+    "type": "LPG Carrier",
+    "course": 273,
+    "speed": 12.9,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     53.61,
+     26.746
+    ]
+   },
+   "properties": {
+    "mmsi": 419000102,
+    "name": "MT DESH GLORY",
+    "type": "Crude Oil Tanker",
+    "course": 111,
+    "speed": 9.5,
+    "dest": "Fujairah"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     56.372,
+     26.636
+    ]
+   },
+   "properties": {
+    "mmsi": 419000103,
+    "name": "MT ZENITH GLORY",
+    "type": "LNG Carrier",
+    "course": 138,
+    "speed": 8.3,
+    "dest": "Jamnagar"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     57.148,
+     25.797
+    ]
+   },
+   "properties": {
+    "mmsi": 419000104,
+    "name": "MT GLORY ATLAS",
+    "type": "Container Ship",
+    "course": 318,
+    "speed": 12.1,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     52.965,
+     26.888
+    ]
+   },
+   "properties": {
+    "mmsi": 419000105,
+    "name": "MT CRIMSON CRIMSON",
+    "type": "Container Ship",
+    "course": 111,
+    "speed": 8.7,
+    "dest": "Fujairah"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     56.203,
+     26.311
+    ]
+   },
+   "properties": {
+    "mmsi": 419000106,
+    "name": "MT PIONEER STAR",
+    "type": "LPG Carrier",
+    "course": 273,
+    "speed": 15.2,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     54.157,
+     26.685
+    ]
+   },
+   "properties": {
+    "mmsi": 419000107,
+    "name": "MT SWARNA STAR",
+    "type": "Container Ship",
+    "course": 111,
+    "speed": 9,
+    "dest": "Fujairah"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     57.658,
+     25.348
+    ]
+   },
+   "properties": {
+    "mmsi": 419000108,
+    "name": "MT PEARL GLORY",
+    "type": "LPG Carrier",
+    "course": 318,
+    "speed": 10.4,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     68.048,
+     21.825
+    ]
+   },
+   "properties": {
+    "mmsi": 419000109,
+    "name": "MT OCEAN PEARL",
+    "type": "Product Tanker",
+    "course": 99,
+    "speed": 8.8,
+    "dest": "Mundra"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     64.346,
+     22.225
+    ]
+   },
+   "properties": {
+    "mmsi": 419000110,
+    "name": "MT ZENITH JAG",
+    "type": "Container Ship",
+    "course": 119,
+    "speed": 9.4,
+    "dest": "Mundra"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     68.747,
+     21.51
+    ]
+   },
+   "properties": {
+    "mmsi": 419000111,
+    "name": "MT PIONEER MAHARSHI",
+    "type": "LPG Carrier",
+    "course": 56,
+    "speed": 15.1,
+    "dest": "Vadinar"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     68.827,
+     21.996
+    ]
+   },
+   "properties": {
+    "mmsi": 419000112,
+    "name": "MT DESH ATLAS",
+    "type": "LPG Carrier",
+    "course": 236,
+    "speed": 15,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     68.824,
+     21.662
+    ]
+   },
+   "properties": {
+    "mmsi": 419000113,
+    "name": "MT DESH CRIMSON",
+    "type": "LPG Carrier",
+    "course": 236,
+    "speed": 10.3,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     62.111,
+     23.187
+    ]
+   },
+   "properties": {
+    "mmsi": 419000114,
+    "name": "MT PEARL TRIDENT",
+    "type": "Crude Oil Tanker",
+    "course": 119,
+    "speed": 9.4,
+    "dest": "Sikka"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     62.546,
+     23.17
+    ]
+   },
+   "properties": {
+    "mmsi": 419000115,
+    "name": "MT PIONEER PIONEER",
+    "type": "Container Ship",
+    "course": 119,
+    "speed": 10.6,
+    "dest": "Sikka"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     66.957,
+     21.595
+    ]
+   },
+   "properties": {
+    "mmsi": 419000116,
+    "name": "MT GLORY GLORY",
+    "type": "LPG Carrier",
+    "course": 279,
+    "speed": 9.8,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     63.687,
+     22.422
+    ]
+   },
+   "properties": {
+    "mmsi": 419000117,
+    "name": "MT DESH PEARL",
+    "type": "Product Tanker",
+    "course": 299,
+    "speed": 11.9,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     69.411,
+     20.088
+    ]
+   },
+   "properties": {
+    "mmsi": 419000118,
+    "name": "MT SWARNA HORIZON",
+    "type": "LNG Carrier",
+    "course": 110,
+    "speed": 14.7,
+    "dest": "JNPT"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     66.719,
+     20.934
+    ]
+   },
+   "properties": {
+    "mmsi": 419000119,
+    "name": "MT PIONEER PEARL",
+    "type": "Container Ship",
+    "course": 290,
+    "speed": 11.9,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.393,
+     18.771
+    ]
+   },
+   "properties": {
+    "mmsi": 419000120,
+    "name": "MT SWARNA STAR",
+    "type": "LPG Carrier",
+    "course": 287,
+    "speed": 14.1,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.279,
+     19.179
+    ]
+   },
+   "properties": {
+    "mmsi": 419000121,
+    "name": "MT PEARL PIONEER",
+    "type": "LNG Carrier",
+    "course": 107,
+    "speed": 15,
+    "dest": "JNPT"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     70.282,
+     19.508
+    ]
+   },
+   "properties": {
+    "mmsi": 419000122,
+    "name": "MT SWARNA PIONEER",
+    "type": "Crude Oil Tanker",
+    "course": 110,
+    "speed": 8.7,
+    "dest": "JNPT"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.697,
+     18.91
+    ]
+   },
+   "properties": {
+    "mmsi": 419000123,
+    "name": "MT SWARNA GLORY",
+    "type": "Crude Oil Tanker",
+    "course": 107,
+    "speed": 8.4,
+    "dest": "Mumbai"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     68.668,
+     20.294
+    ]
+   },
+   "properties": {
+    "mmsi": 419000124,
+    "name": "MT SWARNA EAGLE",
+    "type": "LNG Carrier",
+    "course": 110,
+    "speed": 11.5,
+    "dest": "Mumbai"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     67.829,
+     20.266
+    ]
+   },
+   "properties": {
+    "mmsi": 419000125,
+    "name": "MT STAR GLORY",
+    "type": "LNG Carrier",
+    "course": 290,
+    "speed": 12.4,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     67.785,
+     20.096
+    ]
+   },
+   "properties": {
+    "mmsi": 419000126,
+    "name": "MT TRIDENT JAG",
+    "type": "Container Ship",
+    "course": 290,
+    "speed": 11.4,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     38.266,
+     20.921
+    ]
+   },
+   "properties": {
+    "mmsi": 419000127,
+    "name": "MT MAHARSHI CRIMSON",
+    "type": "LNG Carrier",
+    "course": 151,
+    "speed": 8.8,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.08,
+     29.324
+    ]
+   },
+   "properties": {
+    "mmsi": 419000128,
+    "name": "MT ZENITH STAR",
+    "type": "Crude Oil Tanker",
+    "course": 329,
+    "speed": 8.6,
+    "dest": "Suez"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     42.855,
+     13.578
+    ]
+   },
+   "properties": {
+    "mmsi": 419000129,
+    "name": "MT TRIDENT DESH",
+    "type": "Product Tanker",
+    "course": 326,
+    "speed": 10.7,
+    "dest": "Suez"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.279,
+     28.779
+    ]
+   },
+   "properties": {
+    "mmsi": 419000130,
+    "name": "MT MAHARSHI STAR",
+    "type": "Container Ship",
+    "course": 329,
+    "speed": 15.5,
+    "dest": "Augusta"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     35.166,
+     25.761
+    ]
+   },
+   "properties": {
+    "mmsi": 419000131,
+    "name": "MT PEARL CRIMSON",
+    "type": "LNG Carrier",
+    "course": 331,
+    "speed": 12.4,
+    "dest": "Augusta"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     32.871,
+     29.289
+    ]
+   },
+   "properties": {
+    "mmsi": 419000132,
+    "name": "MT ZENITH PIONEER",
+    "type": "Container Ship",
+    "course": 329,
+    "speed": 10.5,
+    "dest": "Augusta"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     40.167,
+     17.697
+    ]
+   },
+   "properties": {
+    "mmsi": 419000133,
+    "name": "MT HORIZON CRIMSON",
+    "type": "Crude Oil Tanker",
+    "course": 332,
+    "speed": 10.3,
+    "dest": "Augusta"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     40.378,
+     17.372
+    ]
+   },
+   "properties": {
+    "mmsi": 419000134,
+    "name": "MT CRIMSON SWARNA",
+    "type": "Container Ship",
+    "course": 332,
+    "speed": 15.2,
+    "dest": "Rotterdam"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     40.819,
+     16.523
+    ]
+   },
+   "properties": {
+    "mmsi": 419000135,
+    "name": "MT OCEAN OCEAN",
+    "type": "LPG Carrier",
+    "course": 332,
+    "speed": 13.7,
+    "dest": "Rotterdam"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.469,
+     7.509
+    ]
+   },
+   "properties": {
+    "mmsi": 419000136,
+    "name": "MT ZENITH ZENITH",
+    "type": "LPG Carrier",
+    "course": 294,
+    "speed": 8.7,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     73.181,
+     7.398
+    ]
+   },
+   "properties": {
+    "mmsi": 419000137,
+    "name": "MT EAGLE HORIZON",
+    "type": "Container Ship",
+    "course": 114,
+    "speed": 10.8,
+    "dest": "Chennai"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.578,
+     6.489
+    ]
+   },
+   "properties": {
+    "mmsi": 419000138,
+    "name": "MT CRIMSON STAR",
+    "type": "LNG Carrier",
+    "course": 205,
+    "speed": 12.7,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     75.222,
+     6.802
+    ]
+   },
+   "properties": {
+    "mmsi": 419000139,
+    "name": "MT DESH DESH",
+    "type": "Product Tanker",
+    "course": 294,
+    "speed": 9.9,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     76.002,
+     6.387
+    ]
+   },
+   "properties": {
+    "mmsi": 419000140,
+    "name": "MT EAGLE DESH",
+    "type": "LPG Carrier",
+    "course": 294,
+    "speed": 14.4,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     77.022,
+     6.162
+    ]
+   },
+   "properties": {
+    "mmsi": 419000141,
+    "name": "MT JAG ATLAS",
+    "type": "LNG Carrier",
+    "course": 273,
+    "speed": 15,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     81.134,
+     10.608
+    ]
+   },
+   "properties": {
+    "mmsi": 419000142,
+    "name": "MT PEARL CRIMSON",
+    "type": "Product Tanker",
+    "course": 166,
+    "speed": 14.2,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     72.62,
+     7.808
+    ]
+   },
+   "properties": {
+    "mmsi": 419000143,
+    "name": "MT MAHARSHI HORIZON",
+    "type": "LNG Carrier",
+    "course": 114,
+    "speed": 14,
+    "dest": "Chennai"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     80.696,
+     10.943
+    ]
+   },
+   "properties": {
+    "mmsi": 419000144,
+    "name": "MT CRIMSON ATLAS",
+    "type": "Product Tanker",
+    "course": 166,
+    "speed": 14.9,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.9,
+     32.185
+    ]
+   },
+   "properties": {
+    "mmsi": 419000145,
+    "name": "MT ZENITH JAG",
+    "type": "Crude Oil Tanker",
+    "course": 275,
+    "speed": 16,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.023,
+     31.837
+    ]
+   },
+   "properties": {
+    "mmsi": 419000146,
+    "name": "MT CRIMSON SWARNA",
+    "type": "Container Ship",
+    "course": 49,
+    "speed": 14.6,
+    "dest": "Ashdod"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.201,
+     31.787
+    ]
+   },
+   "properties": {
+    "mmsi": 419000147,
+    "name": "MT MAHARSHI STAR",
+    "type": "Crude Oil Tanker",
+    "course": 49,
+    "speed": 14.9,
+    "dest": "Ashdod"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.916,
+     31.945
+    ]
+   },
+   "properties": {
+    "mmsi": 419000148,
+    "name": "MT DESH HORIZON",
+    "type": "LPG Carrier",
+    "course": 95,
+    "speed": 13.3,
+    "dest": "Port Said"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.17,
+     31.86
+    ]
+   },
+   "properties": {
+    "mmsi": 419000149,
+    "name": "MT STAR OCEAN",
+    "type": "LNG Carrier",
+    "course": 49,
+    "speed": 8.1,
+    "dest": "Port Said"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.102,
+     31.887
+    ]
+   },
+   "properties": {
+    "mmsi": 419000150,
+    "name": "MT HORIZON GLORY",
+    "type": "LPG Carrier",
+    "course": 49,
+    "speed": 15.2,
+    "dest": "Ashdod"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     33.122,
+     31.825
+    ]
+   },
+   "properties": {
+    "mmsi": 419000151,
+    "name": "MT ATLAS JAG",
+    "type": "LPG Carrier",
+    "course": 49,
+    "speed": 12.8,
+    "dest": "Port Said"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     34.652,
+     32.641
+    ]
+   },
+   "properties": {
+    "mmsi": 419000152,
+    "name": "MT STAR STAR",
+    "type": "LPG Carrier",
+    "course": 187,
+    "speed": 12.4,
+    "dest": "Ras Tanura"
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     34.747,
+     32.357
+    ]
+   },
+   "properties": {
+    "mmsi": 419000153,
+    "name": "MT TRIDENT ZENITH",
+    "type": "Container Ship",
+    "course": 95,
+    "speed": 14.5,
+    "dest": "Haifa"
+   }
+  }
+ ]
+}

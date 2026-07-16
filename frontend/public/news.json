@@ -1,0 +1,18 @@
+[
+  { "id": 1, "ts": "2026-07-15T05:10:00Z", "source": "Reuters", "title": "IRGC navy drills narrow tanker transit corridor in Strait of Hormuz", "tag": "Hormuz", "severity": 4 },
+  { "id": 2, "ts": "2026-07-15T03:40:00Z", "source": "Bloomberg", "title": "Brent jumps 3.2% as Gulf insurers raise war-risk premiums", "tag": "fuel", "severity": 3 },
+  { "id": 3, "ts": "2026-07-14T22:15:00Z", "source": "S&P Global", "title": "OPEC+ signals no output response before August meeting", "tag": "OPEC", "severity": 2 },
+  { "id": 4, "ts": "2026-07-14T18:05:00Z", "source": "TradeWinds", "title": "Two VLCCs divert around Cape as Red Sea transits fall 40%", "tag": "RedSea", "severity": 3 },
+  { "id": 5, "ts": "2026-07-14T14:30:00Z", "source": "PTI", "title": "Indian refiners weigh SPR release amid import cost surge", "tag": "stress", "severity": 3 },
+  { "id": 6, "ts": "2026-07-14T11:00:00Z", "source": "Argus", "title": "Singapore gasoil cracks widen on Middle East supply fears", "tag": "fuel", "severity": 2 },
+  { "id": 7, "ts": "2026-07-14T08:45:00Z", "source": "Reuters", "title": "RBI flags imported-inflation risk to FY27 growth projection", "tag": "gdp", "severity": 2 },
+  { "id": 8, "ts": "2026-07-13T20:20:00Z", "source": "Bloomberg", "title": "Qatar LNG cargoes delayed at Ras Laffan on security checks", "tag": "Hormuz", "severity": 3 },
+  { "id": 9, "ts": "2026-07-13T16:10:00Z", "source": "S&P Global", "title": "Freight rates for MEG-West Coast India VLCC route up 22%", "tag": "fuel", "severity": 2 },
+  { "id": 10, "ts": "2026-07-13T09:30:00Z", "source": "PTI", "title": "Power ministry reviews gas plant readiness for peak demand", "tag": "stress", "severity": 1 },
+  { "id": 11, "ts": "2026-07-12T21:00:00Z", "source": "TradeWinds", "title": "Bab el-Mandeb convoy escorts extended through September", "tag": "RedSea", "severity": 2 },
+  { "id": 12, "ts": "2026-07-12T13:25:00Z", "source": "Reuters", "title": "India June crude imports hit 5.1m bpd, Gulf share at 58%", "tag": "gdp", "severity": 1 },
+  { "id": 13, "ts": "2026-07-15T07:20:00Z", "source": "Reuters", "title": "Suez Canal Authority reports 18% drop in southbound tanker convoys", "tag": "RedSea", "severity": 3 },
+  { "id": 14, "ts": "2026-07-14T19:40:00Z", "source": "Haaretz", "title": "Israel raises alert level at Haifa and Ashdod terminals", "tag": "stress", "severity": 2 },
+  { "id": 15, "ts": "2026-07-13T11:05:00Z", "source": "Ahram Online", "title": "Egypt fast-tracks SUMED pipeline capacity upgrade amid transit fears", "tag": "RedSea", "severity": 2 },
+  { "id": 16, "ts": "2026-07-12T08:50:00Z", "source": "Bloomberg", "title": "East Med gas exports steady as Leviathan output hits record", "tag": "fuel", "severity": 1 }
+]

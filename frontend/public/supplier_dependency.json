@@ -1,0 +1,17 @@
+{
+  "meta": {
+    "note": "D[supplier][corridor] = share of that supplier's India-bound crude transiting each corridor (a voyage can cross several — Russia transits Suez AND Bab el-Mandeb). sigma_k = supplier-level sanction friction. import_share = share of India crude imports (PPAC/Reuters 2025, reasoned). Terminal coords are the supplier's main crude loading point. RA3 math consumes this; until then it renders as source markers.",
+    "as_of": "2026-07-16"
+  },
+  "suppliers": [
+    { "id": "russia", "name": "Russia (Novorossiysk)", "coords": [37.8, 44.7], "import_share": 0.36, "sigma_k": 0.25, "d": { "suez": 0.35, "babmandeb": 0.35, "cape": 0.12 }, "d_note": "transit share is ~0.85 but EFFECTIVE exposure ~0.35: the 2024 Red Sea episode showed Russian cargoes largely kept transiting while Western-linked ships diverted (history_corpus: redsea-2024)" },
+    { "id": "iraq", "name": "Iraq (Basra)", "coords": [48.2, 29.7], "import_share": 0.2, "sigma_k": 0.05, "d": { "hormuz": 1.0 } },
+    { "id": "saudi", "name": "Saudi Arabia (Ras Tanura)", "coords": [50.16, 26.64], "import_share": 0.15, "sigma_k": 0.02, "d": { "hormuz": 0.95 } },
+    { "id": "uae", "name": "UAE (Jebel Dhanna / Fujairah)", "coords": [52.6, 24.2], "import_share": 0.09, "sigma_k": 0.02, "d": { "hormuz": 0.8 } },
+    { "id": "usa", "name": "USA (Houston)", "coords": [-95.0, 29.0], "import_share": 0.05, "sigma_k": 0.01, "d": { "cape": 0.8, "suez": 0.15 } },
+    { "id": "kuwait", "name": "Kuwait (Mina al-Ahmadi)", "coords": [48.15, 29.07], "import_share": 0.04, "sigma_k": 0.02, "d": { "hormuz": 1.0 } },
+    { "id": "nigeria", "name": "Nigeria (Bonny)", "coords": [7.15, 4.42], "import_share": 0.04, "sigma_k": 0.08, "d": { "cape": 0.95 } },
+    { "id": "oman", "name": "Oman (Mina al Fahal)", "coords": [58.52, 23.63], "import_share": 0.02, "sigma_k": 0.02, "d": {} },
+    { "id": "iran", "name": "Iran (Kharg Island)", "coords": [50.32, 29.23], "import_share": 0.0, "sigma_k": 0.6, "d": { "hormuz": 1.0 } }
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "brent_baseline_usd": {
+    "value": 80.0,
+    "range": [70, 90],
+    "source": "scenario anchor — replaced by live BZ=F when backend present",
+    "as_of": "2026-07",
+    "kind": "live-anchored"
+  },
+  "pump_baseline_inr_l": {
+    "value": 105.0,
+    "range": [94, 112],
+    "source": "IOCL Delhi retail petrol price band 2024-26",
+    "as_of": "2026-07",
+    "kind": "cited"
+  },
+  "india_imports_bbl_d": {
+    "value": 4600000,
+    "range": [4400000, 5100000],
+    "source": "PPAC monthly import data: India crude imports ~4.6-5.1 Mb/d",
+    "as_of": "2025",
+    "kind": "cited"
+  },
+  "hormuz_import_share": {
+    "value": 0.45,
+    "range": [0.4, 0.5],
+    "source": "EIA World Oil Transit Chokepoints + PPAC sourcing mix: ~2.1 of 4.7 Mb/d Indian imports transit Hormuz",
+    "as_of": "2023",
+    "kind": "cited"
+  },
+  "hormuz_world_flow_bbl_d": {
+    "value": 17000000,
+    "range": [15000000, 19000000],
+    "source": "EIA: ~17 Mb/d of crude+products transit Hormuz",
+    "as_of": "2023",
+    "kind": "cited"
+  },
+  "world_supply_bbl_d": {
+    "value": 102000000,
+    "range": [100000000, 104000000],
+    "source": "EIA STEO world liquids supply ~102 Mb/d",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "mitigation_hormuz": {
+    "value": 0.3,
+    "range": [0.2, 0.4],
+    "source": "Saudi East-West (5 Mb/d) + ADNOC Fujairah (1.8 Mb/d) bypass pipelines ≈ 40% of Hormuz flow nameplate; ~30% usable short-notice (IEA/EIA closure analyses)",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "price_elasticity_pct_per_pct": {
+    "value": 8,
+    "range": [5, 15],
+    "source": "short-run crude price response: 1% world supply loss ≈ +5-15% price (IMF/EIA episode studies incl. 1990, 2022)",
+    "as_of": "2022",
+    "kind": "cited"
+  },
+  "overshoot_factor": {
+    "value": 1.35,
+    "range": [1.2, 1.6],
+    "source": "panic premium over settled level in first ~2 weeks; 2022 analog: Brent 139 intraday vs ~117 settled",
+    "as_of": "2022",
+    "kind": "cited"
+  },
+  "pass_through_inr_per_usd_bbl": {
+    "value": 0.55,
+    "range": [0.45, 0.65],
+    "source": "PPAC retail price build-up: $1/bbl crude ≈ ₹0.5-0.6/L pre-policy at prevailing FX",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "policy_pass_through": {
+    "value": 0.5,
+    "range": [0.3, 0.7],
+    "source": "CALIBRATED on the 2022 episode (administered prices): nets excise cuts + OMC absorption + INR depreciation into one factor (RBI Bulletin 2022). Council C1: an explicit FX channel would double-count this; splitting them = roadmap.",
+    "as_of": "2022",
+    "kind": "cited"
+  },
+  "gdp_pp_per_10usd": {
+    "value": 0.3,
+    "range": [0.15, 0.4],
+    "source": "RBI estimates: sustained +$10/bbl ≈ −0.15 to −0.4 pp India GDP growth",
+    "as_of": "2023",
+    "kind": "cited"
+  },
+  "vulnerable_power_share": {
+    "value": 0.145,
+    "range": [0.1, 0.2],
+    "source": "CEA generation mix: gas ~6% + oil ~0.5% + imported-coal-dependent ~8%",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "spr_days_cover": {
+    "value": 10,
+    "range": [9, 12],
+    "source": "ISPRL strategic reserve ≈ 9.5 days of import cover (+ working-stock flexibility)",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "draw_cap_share": {
+    "value": 0.7,
+    "range": [0.5, 0.9],
+    "source": "assumption: logistics cap — stock draw can cover at most ~70% of a daily supply gap",
+    "as_of": "2026-07",
+    "kind": "assumption"
+  },
+  "demand_elasticity": {
+    "value": 0.05,
+    "range": [0.02, 0.1],
+    "source": "short-run fuel demand price elasticity ≈ −0.05 (IMF cross-country)",
+    "as_of": "2021",
+    "kind": "cited"
+  },
+  "freight_per_added_day": {
+    "value": 0.04,
+    "range": [0.02, 0.06],
+    "source": "assumption: charter time + war-risk premium per added voyage day, scaled into pass-through",
+    "as_of": "2026-07",
+    "kind": "assumption"
+  },
+  "scarcity_inr_per_run_loss": {
+    "value": 80,
+    "range": [50, 120],
+    "source": "assumption: domestic scarcity premium per unit refinery run loss (price channel when world crude unmoved)",
+    "as_of": "2026-07",
+    "kind": "assumption"
+  },
+  "gdp_pp_per_run_loss": {
+    "value": 8,
+    "range": [5, 12],
+    "source": "assumption: activity drag per unit run loss (fuel rationing chokes transport/industry)",
+    "as_of": "2026-07",
+    "kind": "assumption"
+  },
+  "redsea_import_share": {
+    "value": 0.35,
+    "range": [0.3, 0.42],
+    "source": "Russian Urals ≈ 35-40% of India crude imports, routed via Suez/Red Sea",
+    "as_of": "2025",
+    "kind": "cited"
+  },
+  "redsea_shortfall_factor": {
+    "value": 0.2,
+    "range": [0.1, 0.3],
+    "source": "assumption: Cape reroute converts most Red Sea disruption into delay/cost; ~20% transient shortfall during the transition window",
+    "as_of": "2026-07",
+    "kind": "assumption"
+  },
+  "opec_max_cut_bbl_d": {
+    "value": 4000000,
+    "range": [2000000, 6000000],
+    "source": "OPEC+ emergency cuts: 2020 ≈ 9.7 Mb/d, typical emergency rounds 2-4 Mb/d; σ=1 ≈ 4 Mb/d",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "freight_usd_per_bbl_day": {
+    "value": 0.2,
+    "range": [0.1, 0.3],
+    "source": "Cape-detour economics: +$3-6/bbl landed cost over ~26 added days (tanker market reports 2024) ≈ $0.15-0.25/bbl/day",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "cargo_vlcc_bbl": {
+    "value": 2000000,
+    "range": [1800000, 2200000],
+    "source": "industry standard ~7.33 bbl/t × ~300k DWT",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "cargo_suezmax_bbl": {
+    "value": 1000000,
+    "range": [900000, 1100000],
+    "source": "~7.33 bbl/t × ~150k DWT",
+    "as_of": "2024",
+    "kind": "cited"
+  },
+  "cargo_aframax_bbl": {
+    "value": 700000,
+    "range": [600000, 800000],
+    "source": "~7.33 bbl/t × ~100k DWT",
+    "as_of": "2024",
+    "kind": "cited"
+  }
+}
