@@ -7,8 +7,8 @@ export default function LayerToggle() {
 
   return (
     // just below the CascadePanel stack
-    <div className="flex shrink-0 items-center gap-1 rounded-lg border border-hairline bg-panel/90 p-1 backdrop-blur-md">
-      <span className="label-caps px-1.5 py-0.5 text-[9px] text-ink-3">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg border border-hairline bg-panel/90 p-1 backdrop-blur-md">
+      <span className="label-caps px-1.5 py-0.5 text-ink-3">
         Context
       </span>
       {(["israel", "egypt"] as const).map((c) => (
@@ -25,10 +25,14 @@ export default function LayerToggle() {
       ))}
       {screening && (
         <span
-          className="micro-mono border-l border-hairline pl-2 pr-1 text-ink-3"
+          className="micro-mono ml-1 flex items-center gap-1 rounded-full border border-hairline bg-navy-deep px-2 py-0.5 text-ink-2"
           title="vessels checked against OpenSanctions (sanctioned = red, shadow fleet = red halo)"
         >
-          ⛔ {screening.matched} of {screening.screened} screened
+          ⛔{" "}
+          <span className="font-bold text-critical-text">
+            {screening.matched}
+          </span>{" "}
+          of {screening.screened} screened
         </span>
       )}
     </div>

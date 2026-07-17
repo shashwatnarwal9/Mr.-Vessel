@@ -27,13 +27,13 @@ export default function Why({
         aria-label={`Why? ${formula}`}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-hairline text-[9px] leading-none text-ink-3 hover:border-secondary hover:text-secondary"
+        className="caption ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-hairline leading-none text-ink-3 hover:border-secondary hover:text-secondary"
       >
         i
       </button>
       {open && (
         <span className="absolute left-1/2 top-full z-40 mt-1 block w-72 -translate-x-1/2 rounded border border-hairline bg-navy-deep p-2.5 text-left shadow-2xl">
-          <span className="label-caps mb-1 block text-[9px] text-secondary">
+          <span className="label-caps mb-1 block text-secondary">
             {tag}
           </span>
           <span className="micro-mono block leading-snug text-ink-2">

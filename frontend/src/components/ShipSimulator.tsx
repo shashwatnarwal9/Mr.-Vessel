@@ -223,7 +223,7 @@ export default function ShipSimulator() {
             "icon-allow-overlap": true,
             "text-field": ["get", "name"],
             "text-font": ["Open Sans Regular"],
-            "text-size": 11,
+            "text-size": 12,
             "text-offset": [0, 1.4],
             "text-anchor": "top",
             "text-allow-overlap": true,

@@ -25,14 +25,19 @@ const CHOKEPOINT: Record<string, string | null> = {
   opec: null,
 };
 
+/** Cascade carousel: the Supplier → … → Sector chain one stage at a time
+ *  (auto-advances gently; arrows for manual control). */
 export default function KGPanel() {
   const pi = useStore((s) => s.pi);
   const scenario = useStore((s) => s.activeScenario);
   const chokepoint = CHOKEPOINT[scenario];
   const [kg, setKg] = useState<KG | null>(null);
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     setKg(null); // scenario changed → drop the stale cascade before refetching
+    setIdx(0);
     if (pi < ALERT_PI_THRESHOLD || !chokepoint) return;
     let alive = true;
     // debounce: a preset σ-ramp changes pi every tick — fetch once it settles
@@ -48,51 +53,81 @@ export default function KGPanel() {
     };
   }, [pi, chokepoint]);
 
-  if (pi < ALERT_PI_THRESHOLD || !chokepoint || !kg) return null;
+  const stages = LAYERS.map((layer) => ({
+    layer,
+    items: (kg?.nodes ?? []).filter((n) => n.layer === layer),
+  })).filter((s) => s.items.length > 0);
+  const n = stages.length;
+
+  // gentle auto-advance (pauses on hover; off under reduced motion)
+  useEffect(() => {
+    if (n === 0 || paused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % n), 4000);
+    return () => clearInterval(t);
+  }, [n, paused]);
+
+  if (pi < ALERT_PI_THRESHOLD || !chokepoint || !kg || n === 0) return null;
+
+  const i = Math.min(idx, n - 1);
+  const stage = stages[i];
+  const hit = stage.layer === "Chokepoint";
 
   return (
-    <aside className="absolute bottom-4 left-1/2 z-10 flex max-w-[min(72rem,calc(100vw-40rem))] -translate-x-1/2 items-center gap-2 overflow-x-auto rounded-lg border border-hairline bg-panel/90 p-2 shadow-2xl backdrop-blur-md">
-      {LAYERS.map((layer, i) => {
-        const items = kg.nodes.filter((n) => n.layer === layer);
-        if (items.length === 0) return null;
-        const hit = layer === "Chokepoint";
-        return (
-          <div key={layer} className="flex shrink-0 items-center gap-2">
-            {i > 0 && (
-              <span className="material-symbols-outlined text-[16px] text-ink-3">
-                arrow_right_alt
-              </span>
-            )}
-            <div
-              className={`flex items-center gap-2 whitespace-nowrap rounded border bg-navy-deep px-3 py-1.5 ${
-                hit
-                  ? "border-critical shadow-[0_0_8px_rgba(208,59,59,0.2)]"
-                  : "border-hairline"
-              }`}
-              style={{ opacity: 0.5 + 0.5 * pi }}
-            >
-              <span
-                className={`material-symbols-outlined text-[14px] ${hit ? "text-critical" : "text-ink-3"}`}
-              >
-                {LAYER_ICON[layer]}
-              </span>
-              <span className="flex flex-col">
-                <span
-                  className={`label-caps text-[8px] ${hit ? "text-critical/80" : "text-ink-3"}`}
-                >
-                  {layer}
-                </span>
-                <span
-                  className={`micro-mono ${hit ? "text-critical" : "text-ink-2"}`}
-                >
-                  {items.map((n) => n.name).join(", ")}
-                </span>
-              </span>
-            </div>
+    <aside
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      aria-label="Supply-chain cascade, one stage at a time"
+      className="absolute bottom-4 left-1/2 z-10 flex w-[30rem] max-w-[calc(100vw-42rem)] -translate-x-1/2 items-center gap-3 rounded-lg border border-hairline bg-panel/90 p-2 shadow-2xl backdrop-blur-md"
+    >
+      <button
+        onClick={() => setIdx((i - 1 + n) % n)}
+        aria-label="Previous stage"
+        className="material-symbols-outlined shrink-0 rounded-full border border-hairline p-0.5 text-[18px] text-ink-2 transition-colors hover:border-secondary hover:text-ink"
+      >
+        chevron_left
+      </button>
+
+      <div
+        className={`flex min-w-0 flex-1 items-center gap-3 rounded border bg-navy-deep px-3 py-1.5 ${
+          hit
+            ? "border-critical shadow-[0_0_8px_rgba(208,59,59,0.2)]"
+            : "border-hairline"
+        }`}
+        style={{ opacity: 0.5 + 0.5 * pi }}
+      >
+        <span
+          className={`material-symbols-outlined shrink-0 text-[20px] ${hit ? "text-critical" : "text-ink-3"}`}
+        >
+          {LAYER_ICON[stage.layer]}
+        </span>
+        <div className="min-w-0">
+          <div
+            className={`caption uppercase tracking-[0.08em] ${hit ? "text-critical/80" : "text-ink-3"}`}
+          >
+            {stage.layer}
+            {i < n - 1 && ` → ${stages[i + 1].layer.toLowerCase()}`}
           </div>
-        );
-      })}
-      <span className="micro-mono shrink-0 pl-1 text-ink-3">({kg.mode})</span>
+          <div
+            className={`micro-mono truncate ${hit ? "text-critical" : "text-ink-2"}`}
+            title={stage.items.map((x) => x.name).join(", ")}
+          >
+            {stage.items.map((x) => x.name).join(", ")}
+          </div>
+        </div>
+      </div>
+
+      <span className="micro-mono shrink-0 tabular-nums text-ink-3" aria-live="polite">
+        {i + 1}/{n}
+      </span>
+      <button
+        onClick={() => setIdx((i + 1) % n)}
+        aria-label="Next stage"
+        className="material-symbols-outlined shrink-0 rounded-full border border-hairline p-0.5 text-[18px] text-ink-2 transition-colors hover:border-secondary hover:text-ink"
+      >
+        chevron_right
+      </button>
+      <span className="micro-mono shrink-0 pr-1 text-ink-3">({kg.mode})</span>
     </aside>
   );
 }

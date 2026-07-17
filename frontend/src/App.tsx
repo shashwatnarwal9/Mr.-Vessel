@@ -84,12 +84,10 @@ export default function App() {
               }
             >
               <span
-                className={`text-[8px] leading-none ${
-                  shipsMode === "live" ? "pulse-dot text-good" : "text-ink-3"
+                className={`h-2 w-2 rounded-full ${
+                  shipsMode === "live" ? "pulse-dot bg-good" : "bg-ink-3"
                 }`}
-              >
-                ●
-              </span>
+              />
               <span
                 className={`label-caps ${shipsMode === "live" ? "text-good" : "text-ink-3"}`}
               >

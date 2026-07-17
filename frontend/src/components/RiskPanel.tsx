@@ -222,11 +222,9 @@ export default function RiskPanel() {
                   <span className="flex items-center justify-between">
                     <span className="body-md flex items-center gap-2 text-ink">
                       <span
-                        className="text-[8px]"
-                        style={{ color: riskColor(r.p) }}
-                      >
-                        ●
-                      </span>
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: riskColor(r.p) }}
+                      />
                       {r.corridor.name}
                       <Why
                         formula={`inputs → ${r.contributions
@@ -240,11 +238,17 @@ export default function RiskPanel() {
                         sources={[]}
                       />
                     </span>
-                    <span className="micro-mono tabular-nums text-ink-2">
-                      {(r.p * 100).toFixed(0)}% ± {(r.band * 100).toFixed(0)}
+                    <span
+                      className="data-lg shrink-0"
+                      style={{ color: riskColor(r.p) }}
+                    >
+                      {(r.p * 100).toFixed(0)}%{" "}
+                      <span className="micro-mono font-normal text-ink-3">
+                        ± {(r.band * 100).toFixed(0)}
+                      </span>
                     </span>
                   </span>
-                  <span className="micro-mono block pl-5 text-ink-3">
+                  <span className="micro-mono block pl-5 text-ink-2">
                     driven by {topDriver(r)} · click for transiting ships
                   </span>
                 </button>

@@ -28,14 +28,14 @@ export default function StoryBanner() {
   }, [sigma, scenario]);
 
   return (
-    <div className="absolute left-1/2 top-3 z-10 flex w-[42rem] -translate-x-1/2 items-center gap-4 rounded-lg border border-hairline bg-navy-raised px-6 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.5)] backdrop-blur-md">
+    <div className="absolute left-1/2 top-3 z-10 flex w-[48rem] -translate-x-1/2 items-center gap-4 rounded-lg border border-hairline bg-navy-raised px-6 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.5)] backdrop-blur-md">
       <span className="material-symbols-outlined shrink-0 text-secondary">
         {sigma <= 0.01 ? "public" : "trending_down"}
       </span>
-      <p className="body-md flex-1 leading-snug text-ink">
+      <p className="headline-sm flex-1 font-semibold leading-snug text-ink">
         {sigma <= 0.01 ? (
           <>
-            <span className="text-ink-2">
+            <span className="body-md font-normal text-ink-2">
               Live map of India's energy system — power plants, tankers,
               chokepoints. Drag the slider or run a{" "}
               <span className="text-secondary">▶ scenario</span> to see what a

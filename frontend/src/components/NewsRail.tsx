@@ -85,26 +85,24 @@ export default function NewsRail() {
             className="flex cursor-pointer flex-col gap-1 rounded-lg border border-hairline bg-navy-deep p-2 transition-colors hover:border-secondary"
           >
             <div className="flex items-center justify-between">
-              <span className="micro-mono text-[9px] uppercase text-ink-3">
+              <span className="micro-mono uppercase text-ink-3">
                 {new Date(n.ts).toLocaleDateString("en-IN", {
                   day: "numeric",
                   month: "short",
                 })}
               </span>
               <span
-                className="text-[8px]"
-                style={{ color: SEV[n.severity] ?? SEV[1] }}
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: SEV[n.severity] ?? SEV[1] }}
                 title={`severity ${n.severity}`}
-              >
-                ●
-              </span>
+              />
             </div>
             <p className="body-md leading-snug text-ink">{n.title}</p>
             <div className="mt-1 flex items-center gap-1">
               <span className="material-symbols-outlined text-[12px] text-ink-3">
                 info
               </span>
-              <span className="label-caps text-[9px] text-ink-2">
+              <span className="label-caps text-ink-2">
                 {n.tag} · Source: {n.source}
               </span>
             </div>

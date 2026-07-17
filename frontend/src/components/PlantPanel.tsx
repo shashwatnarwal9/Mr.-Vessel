@@ -5,7 +5,7 @@ import { FUEL_COLORS } from "./GlobeMap";
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col">
-      <dt className="label-caps text-[9px] text-ink-3">{label}</dt>
+      <dt className="label-caps text-ink-3">{label}</dt>
       <dd className="micro-mono text-ink">{value}</dd>
     </div>
   );

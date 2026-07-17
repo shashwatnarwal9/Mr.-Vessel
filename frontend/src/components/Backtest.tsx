@@ -39,24 +39,24 @@ export default function Backtest() {
         {[yMin + 2, yMax - 2].map((v) => (
           <g key={v}>
             <line x1={PAD.l} x2={W - PAD.r} y1={y(v)} y2={y(v)} stroke={GRID} />
-            <text x={4} y={y(v) + 3} fontSize={10} fill={INK_MUTED}>₹{v.toFixed(0)}</text>
+            <text x={4} y={y(v) + 3} fontSize={12} fill={INK_MUTED}>₹{v.toFixed(0)}</text>
           </g>
         ))}
         {[0, 5, 11].map((i) => (
-          <text key={i} x={x(i)} y={H - 6} fontSize={10} fill={INK_MUTED} textAnchor="middle">
+          <text key={i} x={x(i)} y={H - 6} fontSize={12} fill={INK_MUTED} textAnchor="middle">
             {months[i]}
           </text>
         ))}
         <polyline points={line(modelled)} fill="none" stroke={MODEL_COLOR} strokeWidth={2} />
         <polyline points={line(actual)} fill="none" stroke={ACTUAL_COLOR} strokeWidth={2} />
-        <text x={x(11) + 5} y={y(modelled[11]) + 3} fontSize={10} fill="#e5e9f0">
+        <text x={x(11) + 5} y={y(modelled[11]) + 3} fontSize={12} fill="#e5e9f0">
           modelled
         </text>
-        <text x={x(11) + 5} y={y(actual[11]) + 3} fontSize={10} fill="#e5e9f0">
+        <text x={x(11) + 5} y={y(actual[11]) + 3} fontSize={12} fill="#e5e9f0">
           actual
         </text>
       </svg>
-      <div className="mt-1 flex items-center gap-4 text-[11px] text-slate-400">
+      <div className="caption mt-1 flex items-center gap-4 text-ink-3">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-0.5 w-4" style={{ background: MODEL_COLOR }} /> modelled (pass-through)
         </span>
@@ -64,7 +64,7 @@ export default function Backtest() {
           <span className="h-0.5 w-4" style={{ background: ACTUAL_COLOR }} /> actual (Delhi EOM)
         </span>
       </div>
-      <p className="mt-2 text-[11px] leading-snug text-slate-400">
+      <p className="body-md mt-2 leading-snug text-ink-2">
         Gap in May–Dec is real policy, not model noise: the May 2022 excise cut
         and the OMC retail price freeze held pumps at ₹96.72 while crude stayed
         elevated.

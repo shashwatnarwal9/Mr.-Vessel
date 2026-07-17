@@ -80,10 +80,8 @@ export default function PastSims() {
                     <div>
                       <h3 className="headline-sm flex items-center gap-2 text-ink">
                         <span
-                          className={`text-[12px] ${active ? "text-elevated" : "text-good"}`}
-                        >
-                          ●
-                        </span>
+                          className={`h-2.5 w-2.5 rounded-full ${active ? "bg-elevated" : "bg-good"}`}
+                        />
                         {r.name}
                       </h3>
                       <div className="micro-mono mt-1 text-ink-3">

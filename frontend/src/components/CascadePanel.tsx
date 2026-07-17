@@ -21,11 +21,11 @@ function Stat({
   }[tone];
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-navy-deep p-2">
-      <div className="label-caps text-[9px] leading-tight text-ink-3">
+      <div className="label-caps text-ink-3">
         {label}
         {why}
       </div>
-      <div className={`text-sm font-semibold tabular-nums ${toneCls}`}>
+      <div className={`data-lg ${toneCls}`}>
         {value}
       </div>
     </div>
@@ -78,7 +78,7 @@ export default function CascadePanel() {
     <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between">
         <h2 className="label-caps flex items-center gap-1 text-ink">
-          <span className="mr-1 text-[8px] text-elevated">●</span>
+          <span className="mr-1 h-2 w-2 rounded-full bg-elevated" />
           {plain ? txt.plain : txt.expert}
         </h2>
       </div>

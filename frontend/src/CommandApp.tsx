@@ -58,7 +58,7 @@ export default function CommandApp() {
         <>
           <StoryBanner />
           {/* left column: panels stack and scroll — they can never overlap */}
-          <div className="absolute bottom-4 left-4 top-4 z-10 flex w-72 flex-col gap-2 overflow-y-auto pr-1">
+          <div className="absolute bottom-4 left-4 top-4 z-10 flex w-80 flex-col gap-2 overflow-y-auto pr-1">
             <CascadePanel />
             <LayerToggle />
             <RiskPanel />
@@ -66,7 +66,7 @@ export default function CommandApp() {
             <ShipPanel />
           </div>
           {/* right column: disruption alerts (carousel) above the Signals rail */}
-          <div className="absolute bottom-4 right-4 top-4 z-10 flex w-72 flex-col gap-2">
+          <div className="absolute bottom-4 right-4 top-4 z-10 flex w-80 flex-col gap-2">
             <AlertStack />
             <NewsRail />
           </div>

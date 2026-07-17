@@ -19,7 +19,7 @@ const CLASS_STYLE: Record<string, string> = {
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col">
-      <dt className="label-caps text-[9px] text-ink-3">{label}</dt>
+      <dt className="label-caps text-ink-3">{label}</dt>
       <dd className="micro-mono text-ink">{value}</dd>
     </div>
   );
@@ -128,7 +128,7 @@ export default function ShipPanel() {
           label="vs India"
           value={
             <span
-              className={`rounded px-1.5 py-0.5 text-[11px] ${CLASS_STYLE[classification]}`}
+              className={`caption rounded px-2 py-0.5 ${CLASS_STYLE[classification]}`}
             >
               {classification}
             </span>
@@ -155,7 +155,7 @@ export default function ShipPanel() {
       </dl>
       {/* RA1: sanctions status from baked OpenSanctions data */}
       <div>
-        <div className="label-caps mb-1 text-[9px] text-ink-3">
+        <div className="label-caps mb-1 text-ink-3">
           Sanctions status
         </div>
         {screen === null && (
@@ -165,13 +165,15 @@ export default function ShipPanel() {
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap gap-1">
               <span
-                className={`label-caps rounded px-1.5 py-0.5 ${
+                className={`label-caps rounded border px-2 py-1 font-bold ${
                   screen.vessel.tier === "sanctioned"
-                    ? "bg-critical/25 text-critical-text"
-                    : "bg-elevated/25 text-elevated"
+                    ? "border-critical bg-critical/20 text-critical-text"
+                    : "border-elevated bg-elevated/20 text-elevated"
                 }`}
               >
-                {screen.vessel.tier === "sanctioned" ? "⛔ Sanctioned" : "🕳 Shadow fleet"}
+                {screen.vessel.tier === "sanctioned"
+                  ? "⚠ SANCTIONED"
+                  : "⚠ SHADOW FLEET"}
               </span>
               {screen.focFlag && (
                 <span className="label-caps rounded border border-hairline bg-navy-deep px-1.5 py-0.5 text-ink-2">

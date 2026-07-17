@@ -25,7 +25,7 @@ export default function FanChart({
   unit = "d",
 }: Props) {
   const [hover, setHover] = useState<number | null>(null);
-  const PAD = { l: 6, r: 44, t: 6, b: 14 };
+  const PAD = { l: 6, r: 56, t: 6, b: 16 };
   const iw = width - PAD.l - PAD.r;
   const ih = height - PAD.t - PAD.b;
 
@@ -76,13 +76,13 @@ export default function FanChart({
         <polygon points={area("p25", "p75")} fill={color} opacity={0.28} />
         <polyline points={median} fill="none" stroke={color} strokeWidth={2} />
         {/* direct label: end median (ink token, not series color) */}
-        <text x={x(bands.length - 1) + 4} y={y(last.p50) + 3} fontSize={10} fill="#ffffff">
+        <text x={x(bands.length - 1) + 4} y={y(last.p50) + 3} fontSize={12} fill="#ffffff">
           {format(last.p50)}
         </text>
-        <text x={PAD.l} y={height - 3} fontSize={9} fill={INK_MUTED}>
+        <text x={PAD.l} y={height - 3} fontSize={12} fill={INK_MUTED}>
           {unit} 0
         </text>
-        <text x={PAD.l + iw} y={height - 3} fontSize={9} fill={INK_MUTED} textAnchor="end">
+        <text x={PAD.l + iw} y={height - 3} fontSize={12} fill={INK_MUTED} textAnchor="end">
           {unit} {bands.length - 1}
         </text>
         {hover !== null && h && (
@@ -92,7 +92,7 @@ export default function FanChart({
             <text
               x={hover < bands.length / 2 ? x(hover) + 6 : x(hover) - 6}
               y={PAD.t + 10}
-              fontSize={10}
+              fontSize={12}
               fill="#ffffff"
               textAnchor={hover < bands.length / 2 ? "start" : "end"}
             >

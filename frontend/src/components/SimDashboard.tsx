@@ -20,6 +20,9 @@ import { runReasoning } from "../lib/reasoning";
 import { COEFF } from "../lib/cascade";
 import TrajChart from "./TrajChart";
 import FanChart from "./FanChart";
+import RefineryMap from "./RefineryMap";
+import FuelTanker, { supplierColor } from "./FuelTanker";
+import CardDeck, { type DeckCard } from "./CardDeck";
 import PageIntro from "./PageIntro";
 import ValidationPanel from "./ValidationPanel";
 import HistoricalContext from "./HistoricalContext";
@@ -109,6 +112,8 @@ function ScenarioCard({
   );
 }
 
+type ChartKey = "pump" | "gdp" | "run" | "grid";
+
 /* ---------- run result ---------- */
 
 type RunResult = {
@@ -180,6 +185,17 @@ export default function SimDashboard() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const graphsRef = useRef<HTMLDivElement>(null);
   const workerRef = useRef<Worker | null>(null);
+  // full-screen chart overlay (Esc closes)
+  const [fullChart, setFullChart] = useState<ChartKey | null>(null);
+  // M-DECK: stepped detail decks (modal — structurally one at a time)
+  const [openDeck, setOpenDeck] = useState<"impact" | "mitigation" | null>(null);
+  useEffect(() => {
+    if (!fullChart) return;
+    const onKey = (e: KeyboardEvent) =>
+      e.key === "Escape" && setFullChart(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullChart]);
 
   const candidates = useMemo(
     () =>
@@ -305,6 +321,344 @@ export default function SimDashboard() {
     setSaved(true);
   };
 
+  // the four result charts, one definition each — the grid panels and the
+  // full-screen overlay render the SAME chart at different sizes
+  const chartDefs = result
+    ? [
+        {
+          key: "pump" as ChartKey,
+          title: "PETROL PRICE (₹/L)",
+          icon: "show_chart",
+          iconColor: BLUE,
+          hint: undefined as string | undefined,
+          render: (w: number, h: number) =>
+            result.fans ? (
+              <FanChart
+                title=""
+                bands={result.fans.pump}
+                color={BLUE}
+                format={(v) => `₹${v.toFixed(1)}`}
+                width={w}
+                height={h}
+              />
+            ) : (
+              <div className="h-full w-full animate-pulse rounded bg-white/5" />
+            ),
+        },
+        {
+          key: "gdp" as ChartKey,
+          title: "GDP GROWTH IMPULSE",
+          icon: "trending_down",
+          iconColor: RED,
+          hint: undefined as string | undefined,
+          render: (w: number, h: number) =>
+            result.fans ? (
+              <FanChart
+                title=""
+                bands={result.fans.gdp}
+                color={RED}
+                format={(v) => v.toFixed(2)}
+                width={w}
+                height={h}
+              />
+            ) : (
+              <div className="h-full w-full animate-pulse rounded bg-white/5" />
+            ),
+        },
+        {
+          key: "run" as ChartKey,
+          title: "REFINERY UTILIZATION",
+          icon: "factory",
+          iconColor: AQUA,
+          hint: undefined as string | undefined,
+          render: (w: number, h: number) => (
+            <TrajChart
+              title=""
+              series={[{ name: "run rate", color: AQUA, values: result.traj.run_rate.map((v) => v * 100) }]}
+              format={(v) => `${v.toFixed(1)}%`}
+              width={w}
+              height={h}
+            />
+          ),
+        },
+        {
+          key: "grid" as ChartKey,
+          title: "GRID STRESS INDEX",
+          icon: "bolt",
+          iconColor: "#ffb956",
+          hint: powerMW
+            ? `MW of ${(powerMW / 1000).toFixed(1)} GW exposed`
+            : undefined,
+          render: (w: number, h: number) => (
+            <TrajChart
+              title=""
+              series={[
+                {
+                  name: powerMW ? "MW at risk" : "power stress",
+                  color: YELLOW,
+                  values: result.traj.power_stress.map((v) =>
+                    powerMW ? v * powerMW : v * 100,
+                  ),
+                },
+              ]}
+              format={(v) =>
+                powerMW ? `${Math.round(v).toLocaleString()} MW` : `${v.toFixed(1)}%`
+              }
+              width={w}
+              height={h}
+            />
+          ),
+        },
+      ]
+    : [];
+
+  // ---- M-DECK card builders: every number below is the run's own value,
+  // broken into steps; no new math beyond descriptive stats of the traj ----
+  const impactCards: DeckCard[] = result
+    ? (() => {
+        const settle = result.traj.fuel_price[89];
+        const delta = settle - BASE.pumpInrPerL;
+        const pct = (delta / BASE.pumpInrPerL) * 100;
+        const diesel = 90.4 + delta;
+        const dCrude = result.traj.crude[89] - 80;
+        const bill = (dCrude * COEFF.india_imports_bbl_d.value * 90) / 1e9;
+        const peak = Math.max(...result.traj.fuel_price);
+        const peakDay = result.traj.fuel_price.indexOf(peak);
+        const cliffDay = result.traj.run_rate.findIndex((v) => v < 0.98);
+        return [
+          {
+            id: "headline",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">
+                  1 · WHAT YOU'LL PAY
+                </span>
+                <span className="stat-lg tabular-nums text-ink">
+                  ₹{settle.toFixed(1)}/L{" "}
+                  <span className="headline-sm text-elevated">
+                    ▲ {pct.toFixed(0)}%
+                  </span>
+                </span>
+                <p className="body-md mt-auto text-ink-2">
+                  A full tank costs about ₹{(delta * 35).toFixed(0)} more.
+                  <Why
+                    formula="settled pump price = day-90 value of this run's trajectory; tank cost = Δ₹/L × 35 L vs the ₹105 Delhi base"
+                    sources={["pump_baseline_inr_l", "pass_through_inr_per_usd_bbl"]}
+                  />
+                </p>
+              </>
+            ),
+          },
+          {
+            id: "fuels",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">
+                  2 · PETROL VS DIESEL
+                </span>
+                <div className="flex gap-6">
+                  <div>
+                    <div className="micro-mono text-ink-3">PETROL</div>
+                    <div className="data-lg text-ink">
+                      ₹{BASE.pumpInrPerL} → ₹{settle.toFixed(1)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="micro-mono text-ink-3">DIESEL</div>
+                    <div className="data-lg text-ink">
+                      ₹90.4 → ₹{diesel.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+                <p className="body-md mt-auto text-ink-2">
+                  Only about half the crude shock reaches the pump — the
+                  government absorbs the rest.
+                  <Why
+                    formula="pump = base + Δcrude × pass-through × policy damping (0.5, calibrated on the 2022 episode — calibration, not validation)"
+                    sources={["pass_through_inr_per_usd_bbl", "policy_pass_through"]}
+                  />
+                </p>
+              </>
+            ),
+          },
+          {
+            id: "bill",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">
+                  3 · THE EXTRA IMPORT BILL
+                </span>
+                <span className="stat-lg tabular-nums text-ink">
+                  ≈ ${bill.toFixed(1)}bn{" "}
+                  <span className="headline-sm text-critical-text">
+                    over 90 days
+                  </span>
+                </span>
+                <p className="body-md mt-auto text-ink-2">
+                  Barrels × price rise × 90 days — a bill that pressures the
+                  rupee and growth.
+                  <Why
+                    formula={`${(COEFF.india_imports_bbl_d.value / 1e6).toFixed(1)}M bbl/day imports × $${dCrude.toFixed(0)}/bbl × 90 days; GDP link via the RBI oil-to-growth coefficient`}
+                    sources={["india_imports_bbl_d", "gdp_pp_per_10usd"]}
+                  />
+                </p>
+              </>
+            ),
+          },
+          {
+            id: "path",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">4 · THE 90 DAYS</span>
+                <span className="data-lg text-ink">
+                  spike ₹{peak.toFixed(1)} (~day {peakDay}) → settle ₹
+                  {settle.toFixed(1)}
+                </span>
+                <p className="body-md mt-auto text-ink-2">
+                  Prices spike before barrels can reroute, then settle.{" "}
+                  {cliffDay >= 0
+                    ? `The reserve shields refiners until ~day ${cliffDay}.`
+                    : "The reserve holds for all 90 days."}
+                  <Why
+                    formula="descriptive stats of this run's own trajectory: max, argmax, and the first day run-rate drops below 98%"
+                    sources={["spr_days_cover", "draw_cap_share"]}
+                  />
+                </p>
+              </>
+            ),
+          },
+        ];
+      })()
+    : [];
+
+  const mitigationCards: DeckCard[] = result?.mitigation
+    ? (() => {
+        const m = result.mitigation;
+        return [
+          {
+            id: "objective",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">1 · THE GOAL</span>
+                <p className="headline-sm text-ink">
+                  Re-route crude purchases to soften the 90-day hit.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {["capacity caps", "shares = 100%", "no sanctioned suppliers", "freight cost priced in"].map((c) => (
+                    <span
+                      key={c}
+                      className="caption rounded-full border border-[#199e70]/40 bg-[#199e70]/10 px-2 py-0.5 text-[#a3e5c9]"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+                <p className="caption mt-auto text-ink-3">
+                  {m.objective} · greedy search under cited caps — not a
+                  global optimum
+                </p>
+              </>
+            ),
+          },
+          {
+            id: "shortfall",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">
+                  2 · WHAT IT SAVES
+                </span>
+                <span className="stat-lg tabular-nums text-ink">
+                  {(m.before / 1000).toFixed(0)}k →{" "}
+                  <span className="text-[#199e70]">
+                    {(m.after / 1000).toFixed(0)}k
+                  </span>{" "}
+                  <span className="headline-sm text-ink-2">bbl/day</span>
+                </span>
+                <p className="body-md mt-auto text-ink-2">
+                  Re-sourcing recovers{" "}
+                  {((m.before - m.after) / 1000).toFixed(0)}k bbl/day — the
+                  rest is capped out.
+                  <Why
+                    formula="shortfall before/after the greedy re-sourcing pass; caps = each supplier's cited spare capacity (IEA)"
+                    sources={["india_imports_bbl_d"]}
+                  />
+                </p>
+              </>
+            ),
+          },
+          {
+            id: "moves",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">
+                  3 · THE MOVES, ONE BY ONE
+                </span>
+                {m.moves.length > 0 ? (
+                  <ul className="body-md flex flex-col gap-2 text-ink-2">
+                    {m.moves.map((mv, i) => (
+                      <li
+                        key={i}
+                        title="receiver has spare capacity on an unaffected corridor"
+                        className="flex items-center justify-between rounded border border-hairline bg-navy-deep px-3 py-2"
+                      >
+                        <span>
+                          {mv.from.split(" (")[0]} →{" "}
+                          <span className="text-[#199e70]">
+                            {mv.to.split(" (")[0]}
+                          </span>
+                        </span>
+                        <span className="micro-mono text-ink">
+                          {(mv.share * 100).toFixed(1)}%
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="body-md text-ink-2">
+                    No move helps — every alternative is capped or exposed to
+                    the same corridors.
+                  </p>
+                )}
+              </>
+            ),
+          },
+          {
+            id: "residual",
+            body: (
+              <>
+                <span className="label-caps text-ink-3">
+                  4 · WHAT REMAINS
+                </span>
+                <span className="data-lg text-ink">
+                  {(m.after / 1000).toFixed(0)}k bbl/day
+                </span>
+                <p className="body-md text-ink-2">
+                  The reserve and lower demand absorb this — it's already in
+                  the charts.
+                  <Why
+                    formula={`${m.residualNote}. residual = shortfall after re-sourcing; absorbed via SPR draw (≤70% of daily gap) + price-elastic demand`}
+                    sources={["spr_days_cover", "draw_cap_share", "price_elasticity_pct_per_pct"]}
+                  />
+                </p>
+                {m.moves.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setMix(m.newMix);
+                      setMixCorrected(false);
+                      setOpenDeck(null);
+                    }}
+                    className="label-caps mt-auto w-full rounded border border-[#199e70]/50 py-2 text-[#199e70] transition-colors hover:bg-[#199e70]/10"
+                  >
+                    APPLY TO SCENARIO → RE-RUN TO COMPARE
+                  </button>
+                )}
+              </>
+            ),
+          },
+        ];
+      })()
+    : [];
+
   return (
     <div className="h-full overflow-y-auto bg-dim p-6">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
@@ -315,8 +669,8 @@ export default function SimDashboard() {
         />
 
         {/* controls row: THE SHOCK (4) × INDIA'S SUPPLY MIX (8) */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <section className="flex flex-col rounded-lg border border-hairline bg-panel lg:col-span-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+          <section className="flex flex-col rounded-lg border border-hairline bg-panel md:col-span-5 lg:col-span-4">
             <header className="flex items-center justify-between border-b border-hairline px-4 py-2">
               <h2 className="label-caps flex items-center gap-2 text-ink-3">
                 <span className="h-2 w-2 rounded-full bg-elevated" />
@@ -337,7 +691,7 @@ export default function SimDashboard() {
               />
             </div>
           </section>
-          <section className="flex flex-col rounded-lg border border-hairline bg-panel lg:col-span-8">
+          <section className="flex flex-col rounded-lg border border-hairline bg-panel md:col-span-7 lg:col-span-8">
             <header className="flex items-center justify-between border-b border-hairline px-4 py-2">
               <h2 className="label-caps text-ink-3">
                 INDIA'S SUPPLY MIX
@@ -357,10 +711,16 @@ export default function SimDashboard() {
               </button>
             </header>
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 p-4 md:grid-cols-2">
-              {suppliers.map((s) => (
+              {suppliers.map((s, i) => (
                 <label key={s.id} className="flex flex-col gap-1">
                   <span className="flex items-end justify-between">
-                    <span className="body-md text-ink">{s.name}</span>
+                    <span className="body-md flex items-center gap-2 text-ink">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: supplierColor(i) }}
+                      />
+                      {s.name}
+                    </span>
                     <span className="micro-mono tabular-nums text-ink">
                       {Math.round((mix[s.id] ?? 0) * 100)}%
                     </span>
@@ -376,6 +736,9 @@ export default function SimDashboard() {
                   />
                 </label>
               ))}
+              <div className="md:col-span-2">
+                <FuelTanker suppliers={suppliers} mix={mix} />
+              </div>
               <div className="flex items-center justify-between md:col-span-2">
                 <span
                   className={`micro-mono ${
@@ -592,7 +955,7 @@ export default function SimDashboard() {
                 warning
               </span>
               <div>
-                <h3 className="headline-sm mb-1 text-[#ffddb5]">
+                <h3 className="headline-lg mb-1 text-[#ffddb5]">
                   Projected impact — {autoName(result.disruptions)}
                 </h3>
                 <p className="body-md text-[#f9b898]">
@@ -607,245 +970,88 @@ export default function SimDashboard() {
 
             {/* charts grid */}
             <div ref={graphsRef} className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="flex h-48 flex-col rounded-lg border border-hairline bg-panel p-2">
-                  <header className="mb-2 flex items-center justify-between">
-                    <span className="label-caps text-ink-3">
-                      PETROL PRICE (₹/L)
-                    </span>
-                    <span
-                      className="material-symbols-outlined text-[14px]"
-                      style={{ color: BLUE }}
-                    >
-                      show_chart
-                    </span>
-                  </header>
-                  <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded bg-navy-deep p-1">
-                    {result.fans ? (
-                      <FanChart
-                        title=""
-                        bands={result.fans.pump}
-                        color={BLUE}
-                        format={(v) => `₹${v.toFixed(1)}`}
-                        width={250}
-                        height={140}
-                      />
-                    ) : (
-                      <div className="h-full w-full animate-pulse rounded bg-white/5" />
-                    )}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {chartDefs.map((c) => (
+                  <div
+                    key={c.key}
+                    className="flex h-80 flex-col rounded-lg border border-hairline bg-panel p-3"
+                  >
+                    <header className="mb-2 flex items-center justify-between">
+                      <span className="headline-sm text-ink" title={c.hint}>
+                        {c.title}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="material-symbols-outlined text-[16px]"
+                          style={{ color: c.iconColor }}
+                        >
+                          {c.icon}
+                        </span>
+                        <button
+                          onClick={() => setFullChart(c.key)}
+                          aria-label={`View ${c.title} full screen`}
+                          title="Full screen"
+                          className="material-symbols-outlined rounded text-[18px] text-ink-3 transition-colors hover:text-ink"
+                        >
+                          fullscreen
+                        </button>
+                      </span>
+                    </header>
+                    <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded bg-navy-deep p-1">
+                      {c.render(520, 240)}
+                    </div>
                   </div>
-                </div>
-                <div className="flex h-48 flex-col rounded-lg border border-hairline bg-panel p-2">
-                  <header className="mb-2 flex items-center justify-between">
-                    <span className="label-caps text-ink-3">
-                      GDP GROWTH IMPULSE
-                    </span>
-                    <span
-                      className="material-symbols-outlined text-[14px]"
-                      style={{ color: RED }}
-                    >
-                      trending_down
-                    </span>
-                  </header>
-                  <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded bg-navy-deep p-1">
-                    {result.fans ? (
-                      <FanChart
-                        title=""
-                        bands={result.fans.gdp}
-                        color={RED}
-                        format={(v) => v.toFixed(2)}
-                        width={250}
-                        height={140}
-                      />
-                    ) : (
-                      <div className="h-full w-full animate-pulse rounded bg-white/5" />
-                    )}
-                  </div>
-                </div>
-                <div className="flex h-48 flex-col rounded-lg border border-hairline bg-panel p-2">
-                  <header className="mb-2 flex items-center justify-between">
-                    <span className="label-caps text-ink-3">
-                      REFINERY UTILIZATION
-                    </span>
-                    <span
-                      className="material-symbols-outlined text-[14px]"
-                      style={{ color: AQUA }}
-                    >
-                      factory
-                    </span>
-                  </header>
-                  <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded bg-navy-deep p-1">
-                    <TrajChart
-                      title=""
-                      series={[{ name: "run rate", color: AQUA, values: result.traj.run_rate.map((v) => v * 100) }]}
-                      format={(v) => `${v.toFixed(1)}%`}
-                      width={250}
-                      height={140}
-                    />
-                  </div>
-                </div>
-                <div className="flex h-48 flex-col rounded-lg border border-hairline bg-panel p-2">
-                  <header className="mb-2 flex items-center justify-between">
-                    <span
-                      className="label-caps text-ink-3"
-                      title={
-                        powerMW
-                          ? `MW of ${(powerMW / 1000).toFixed(1)} GW exposed`
-                          : undefined
-                      }
-                    >
-                      GRID STRESS INDEX
-                    </span>
-                    <span className="material-symbols-outlined text-[14px] text-secondary">
-                      bolt
-                    </span>
-                  </header>
-                  <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded bg-navy-deep p-1">
-                    <TrajChart
-                      title=""
-                      series={[
-                        {
-                          name: powerMW ? "MW at risk" : "power stress",
-                          color: YELLOW,
-                          values: result.traj.power_stress.map((v) =>
-                            powerMW ? v * powerMW : v * 100,
-                          ),
-                        },
-                      ]}
-                      format={(v) =>
-                        powerMW ? `${Math.round(v).toLocaleString()} MW` : `${v.toFixed(1)}%`
-                      }
-                      width={250}
-                      height={140}
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
               {result.fans && (
-                <p className="micro-mono text-ink-3">
+                <p className="body-md text-ink-2">
                   Shaded bands = the middle 50% and 90% of 10,000 simulated
                   futures; the line is the median.
                 </p>
               )}
 
               {/* lower section grid: summary (4) · mitigation (4) · analogs (4) */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-                <section className="flex flex-col rounded-lg border border-hairline bg-panel p-4 lg:col-span-4">
-                  <h2 className="label-caps mb-4 text-ink-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-12">
+                <section className="flex flex-col justify-between gap-6 rounded-lg border border-hairline bg-panel p-4 lg:col-span-4">
+                  <h2 className="label-caps flex items-center gap-2 text-ink-3">
+                    <span className="material-symbols-outlined text-[18px] text-secondary">
+                      payments
+                    </span>
                     ECONOMIC IMPACT SUMMARY
                   </h2>
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <div className="micro-mono mb-1 text-ink-3">
-                        PROJECTED RETAIL SETTLEMENT
-                      </div>
-                      <div className="stat-lg tabular-nums text-ink">
-                        ₹{result.traj.fuel_price[89].toFixed(1)}/L{" "}
-                        <span className="body-md ml-2 text-elevated">
-                          ▲{" "}
-                          {(
-                            ((result.traj.fuel_price[89] - BASE.pumpInrPerL) /
-                              BASE.pumpInrPerL) *
-                            100
-                          ).toFixed(0)}
-                          %
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-px w-full bg-hairline" />
-                    <div>
-                      <div className="micro-mono mb-1 text-ink-3">
-                        EXTRA IMPORT BILL (90D)
-                      </div>
-                      <div className="stat-lg tabular-nums text-ink">
-                        ≈ $
-                        {(
-                          ((result.traj.crude[89] - 80) *
-                            COEFF.india_imports_bbl_d.value *
-                            90) /
-                          1e9
-                        ).toFixed(1)}
-                        bn{" "}
-                        <span className="body-md ml-2 text-critical-text">▲</span>
-                      </div>
-                    </div>
-                    <div className="h-px w-full bg-hairline" />
-                    <p className="micro-mono text-ink-3">
-                      diesel ~₹
-                      {(90.4 + (result.traj.fuel_price[89] - 105)).toFixed(1)}
-                      /L (same damped pass-through from a ₹90.4 Delhi base)
-                      <Why
-                        formula="diesel: same pass-through × policy damping from the diesel base; import bill: Δcrude × imports × 90 days"
-                        sources={["pass_through_inr_per_usd_bbl", "policy_pass_through", "india_imports_bbl_d"]}
-                      />
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setOpenDeck("impact")}
+                    className="label-caps flex w-full items-center justify-center gap-1 rounded border border-secondary/50 py-2 text-secondary transition-colors hover:bg-gold-wash"
+                  >
+                    Click here
+                    <span className="material-symbols-outlined text-[14px]">
+                      arrow_forward
+                    </span>
+                  </button>
                 </section>
 
-                {/* v7: constrained optimal mitigation — never a bare optimum */}
+                {/* v7: constrained optimal mitigation — detail lives in the deck */}
                 {result.mitigation && (
                   <section className="flex flex-col lg:col-span-4">
-                    <div className="flex flex-1 flex-col rounded-lg border border-[#199e70]/30 bg-[#0f1f18] p-4">
-                      <header className="mb-4 flex items-center gap-1">
+                    <div className="flex flex-1 flex-col justify-between gap-6 rounded-lg border border-[#199e70]/30 bg-[#0f1f18] p-4">
+                      <h2
+                        className="label-caps flex items-center gap-2 text-[#199e70]"
+                        title="greedy search under cited caps — not a global optimum"
+                      >
                         <span className="material-symbols-outlined text-[18px] text-[#199e70]">
                           security
                         </span>
-                        <h2
-                          className="label-caps text-[#199e70]"
-                          title="greedy search under cited caps — not a global optimum"
-                        >
-                          SUGGESTED MITIGATION
-                        </h2>
-                      </header>
-                      <p className="micro-mono text-ink-3">
-                        objective: {result.mitigation.objective}
-                      </p>
-                      <ul className="micro-mono mt-1 text-ink-3">
-                        {result.mitigation.constraints.map((c) => (
-                          <li key={c}>· {c}</li>
-                        ))}
-                      </ul>
-                      {result.mitigation.moves.length > 0 ? (
-                        <>
-                          <ul className="body-md mt-2 flex-1 space-y-2 text-[#a3e5c9]">
-                            {result.mitigation.moves.map((mv, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <span className="mt-1 text-[10px] text-[#199e70]">
-                                  ▶
-                                </span>
-                                <span>
-                                  move {(mv.share * 100).toFixed(1)}% of
-                                  imports: {mv.from.split(" (")[0]} →{" "}
-                                  {mv.to.split(" (")[0]}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="body-md mt-2 text-ink-2">
-                            shortfall{" "}
-                            {(result.mitigation.before / 1000).toFixed(0)}k →{" "}
-                            <span className="font-semibold text-[#199e70]">
-                              {(result.mitigation.after / 1000).toFixed(0)}k
-                              bbl/day
-                            </span>{" "}
-                            · {result.mitigation.residualNote}
-                          </p>
-                          <button
-                            onClick={() => {
-                              setMix(result.mitigation!.newMix);
-                              setMixCorrected(false);
-                            }}
-                            className="label-caps mt-4 w-full rounded border border-[#199e70]/50 py-1 text-[#199e70] transition-colors hover:bg-[#199e70]/10"
-                          >
-                            APPLY TO SCENARIO → RE-RUN TO COMPARE
-                          </button>
-                        </>
-                      ) : (
-                        <p className="body-md mt-2 flex-1 text-ink-2">
-                          No re-sourcing move improves this run (
-                          {result.mitigation.residualNote}).
-                        </p>
-                      )}
+                        SUGGESTED MITIGATION
+                      </h2>
+                      <button
+                        onClick={() => setOpenDeck("mitigation")}
+                        className="label-caps flex w-full items-center justify-center gap-1 rounded border border-secondary/50 py-2 text-secondary transition-colors hover:bg-gold-wash"
+                      >
+                        Click here
+                        <span className="material-symbols-outlined text-[14px]">
+                          arrow_forward
+                        </span>
+                      </button>
                     </div>
                   </section>
                 )}
@@ -860,36 +1066,43 @@ export default function SimDashboard() {
                 </section>
               </div>
 
-              {/* per-refinery: Gulf-fed cut harder */}
-              {result.coupled && (
-                <section className="rounded-lg border border-hairline bg-panel">
-                  <h2 className="label-caps border-b border-hairline px-4 py-2 text-ink-3">
-                    PER-REFINERY RUN RATE
-                  </h2>
-                  <div className="grid gap-x-6 gap-y-1 p-4 md:grid-cols-2">
-                    {perRefineryRunRate(
-                      1 - Math.min(...result.traj.run_rate),
-                    ).map((r) => (
-                      <div
-                        key={r.name}
-                        className="body-md flex justify-between rounded border border-hairline bg-navy-deep px-2 py-1"
-                      >
-                        <span className="text-ink-2">
-                          {r.name}{" "}
-                          <span className="micro-mono text-ink-3">
-                            ({r.port})
-                          </span>
-                        </span>
-                        <span
-                          className={`micro-mono self-center tabular-nums ${r.runRate < 0.9 ? "text-elevated" : "text-ink"}`}
-                        >
-                          {(r.runRate * 100).toFixed(0)}%
-                        </span>
+              {/* per-refinery: Gulf-fed cut harder — mapped, tags = run rate */}
+              {result.coupled &&
+                (() => {
+                  const rows = perRefineryRunRate(
+                    1 - Math.min(...result.traj.run_rate),
+                  );
+                  return (
+                    <section className="rounded-lg border border-hairline bg-panel">
+                      <h2 className="label-caps border-b border-hairline px-4 py-2 text-ink-3">
+                        PER-REFINERY RUN RATE
+                      </h2>
+                      <div className="flex flex-col gap-4 p-4">
+                        <RefineryMap rows={rows} />
+                        <div className="grid gap-x-6 gap-y-1 md:grid-cols-2">
+                          {rows.map((r) => (
+                            <div
+                              key={r.name}
+                              className="body-md flex justify-between rounded border border-hairline bg-navy-deep px-2 py-1"
+                            >
+                              <span className="text-ink-2">
+                                {r.name}{" "}
+                                <span className="micro-mono text-ink-3">
+                                  ({r.port})
+                                </span>
+                              </span>
+                              <span
+                                className={`micro-mono self-center tabular-nums ${r.runRate < 0.9 ? "text-elevated" : "text-ink"}`}
+                              >
+                                {(r.runRate * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+                    </section>
+                  );
+                })()}
             </div>
 
             {/* v7: plain-language reasoning — why these numbers */}
@@ -945,6 +1158,65 @@ export default function SimDashboard() {
                 </button>
               </div>
             </footer>
+
+            {/* full-screen chart overlay */}
+            {fullChart &&
+              (() => {
+                const c = chartDefs.find((x) => x.key === fullChart);
+                if (!c) return null;
+                const fw = Math.min(1240, window.innerWidth - 120);
+                const fh = Math.min(560, window.innerHeight - 240);
+                return (
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`${c.title} — full screen`}
+                    onClick={() => setFullChart(null)}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/80 p-8 backdrop-blur-sm"
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex max-h-full max-w-full flex-col gap-3 rounded-lg border border-hairline bg-panel p-4 shadow-2xl"
+                    >
+                      <header className="flex items-center justify-between gap-6">
+                        <span className="headline-sm text-ink" title={c.hint}>
+                          {c.title}
+                        </span>
+                        <button
+                          onClick={() => setFullChart(null)}
+                          aria-label="Close full screen"
+                          title="Close (Esc)"
+                          className="material-symbols-outlined rounded text-[22px] text-ink-3 transition-colors hover:text-ink"
+                        >
+                          close_fullscreen
+                        </button>
+                      </header>
+                      <div className="overflow-auto rounded bg-navy-deep p-3">
+                        {c.render(fw, fh)}
+                      </div>
+                      <p className="caption text-ink-3">
+                        Esc or click outside to close
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            {/* M-DECK: stepped detail decks */}
+            {openDeck === "impact" && (
+              <CardDeck
+                title="Economic impact — step by step"
+                cards={impactCards}
+                onClose={() => setOpenDeck(null)}
+              />
+            )}
+            {openDeck === "mitigation" && result.mitigation && (
+              <CardDeck
+                title="Suggested mitigation — step by step"
+                cards={mitigationCards}
+                onClose={() => setOpenDeck(null)}
+              />
+            )}
           </>
         )}
 

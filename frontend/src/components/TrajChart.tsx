@@ -57,7 +57,7 @@ export default function TrajChart({
         {[lo, hi].map((v, i) => (
           <g key={i}>
             <line x1={PAD.l} x2={PAD.l + iw} y1={y(v)} y2={y(v)} stroke={GRID} />
-            <text x={4} y={y(v) + 3} fontSize={10} fill={INK_MUTED}>
+            <text x={4} y={y(v) + 3} fontSize={12} fill={INK_MUTED}>
               {format(v)}
             </text>
           </g>
@@ -73,23 +73,23 @@ export default function TrajChart({
             <text
               x={x(n - 1) + 5}
               y={y(s.values[n - 1]) + 3}
-              fontSize={10}
+              fontSize={12}
               fill="#ffffff"
             >
               {s.name}
             </text>
           </g>
         ))}
-        <text x={PAD.l} y={height - 4} fontSize={9} fill={INK_MUTED}>
+        <text x={PAD.l} y={height - 4} fontSize={12} fill={INK_MUTED}>
           d 0
         </text>
-        <text x={PAD.l + iw} y={height - 4} fontSize={9} fill={INK_MUTED} textAnchor="end">
+        <text x={PAD.l + iw} y={height - 4} fontSize={12} fill={INK_MUTED} textAnchor="end">
           d {n - 1}
         </text>
         {hover !== null && (
           <g pointerEvents="none">
             <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={PAD.t + ih} stroke={INK_MUTED} />
-            <text x={x(hover) < width / 2 ? x(hover) + 6 : x(hover) - 6} y={PAD.t + 10} fontSize={10} fill="#ffffff" textAnchor={x(hover) < width / 2 ? "start" : "end"}>
+            <text x={x(hover) < width / 2 ? x(hover) + 6 : x(hover) - 6} y={PAD.t + 10} fontSize={12} fill="#ffffff" textAnchor={x(hover) < width / 2 ? "start" : "end"}>
               d {hover}:{" "}
               {series.map((s) => `${s.name} ${format(s.values[hover])}`).join(" · ")}
             </text>

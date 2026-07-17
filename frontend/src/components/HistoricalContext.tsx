@@ -9,6 +9,7 @@ import {
   type Episode,
 } from "../lib/history";
 import { BASE } from "../lib/cascade";
+import CardDeck, { type DeckCard } from "./CardDeck";
 import Why from "./Why";
 
 const API = import.meta.env.VITE_API_HTTP ?? "http://localhost:8000";
@@ -20,11 +21,6 @@ async function loadCorpus(): Promise<Episode[]> {
   return CORPUS;
 }
 
-const PLACE_STYLE = {
-  inside: "bg-good/20 text-good-text",
-  above: "bg-elevated/20 text-elevated",
-  below: "bg-bright text-ink-2",
-} as const;
 const PLACE_LABEL = {
   inside: "inside the historical band",
   above: "above history — severe case",
@@ -49,6 +45,7 @@ export default function HistoricalContext({
   const [analogs, setAnalogs] = useState<Analog[]>([]);
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrSource, setNarrSource] = useState<"template" | "GLM-5.2">("template");
+  const [deckOpen, setDeckOpen] = useState(false);
 
   const crudePct =
     ((traj.crude[89] - BASE.brentUsd) / BASE.brentUsd) * 100;
@@ -112,65 +109,120 @@ export default function HistoricalContext({
   if (analogs.length === 0) return null;
   const place = rangePlacement(crudePct, analogs);
 
-  return (
-    <div className="flex flex-1 flex-col rounded-lg border border-hairline bg-panel p-4">
-      <header className="mb-4 flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1">
-          <span className="material-symbols-outlined text-[18px] text-ink-3">
-            history
+  // M-DECK C: verdict → one card per episode → so-what (same data, stepped)
+  const moves = analogs.map((a) => a.episode.crude_move_pct);
+  const bandLo = Math.min(...moves);
+  const bandHi = Math.max(...moves);
+  const deckCards: DeckCard[] = [
+    {
+      id: "verdict",
+      body: (
+        <>
+          <span className="label-caps text-ink-3">1 · THE VERDICT</span>
+          <span className="stat-lg tabular-nums text-ink">
+            {crudePct > 0 ? "+" : ""}
+            {crudePct.toFixed(0)}%{" "}
+            <span className="headline-sm text-ink-2">crude move</span>
           </span>
-          <h2 className="label-caps text-ink-3">
-            HISTORICAL ANALOGS
+          {narrative && (
+            <p className="body-md leading-relaxed text-ink-2">{narrative}</p>
+          )}
+          <p className="caption mt-auto text-ink-3">
+            history's band:{" "}
+            <span className="micro-mono">
+              {bandLo > 0 ? "+" : ""}
+              {bandLo}% to +{bandHi}%
+            </span>{" "}
+            · this run:{" "}
+            <span
+              className={
+                place === "above" ? "text-elevated" : place === "inside" ? "text-good-text" : "text-ink-2"
+              }
+            >
+              {PLACE_LABEL[place]}
+            </span>
             <Why
               tag="derived"
-              formula="top-3 cosine match over normalized [hormuz, redsea, supply-cut, Δcrude, duration] signatures vs 28 real episodes (+ bge-m3 semantic blend when the backend is live); narration uses ONLY retrieved facts — any unsourced number discards it"
+              formula="top-3 cosine match over normalized [hormuz, redsea, supply-cut, Δcrude, duration] signatures vs 28 real episodes; band = min–max crude move of the retrieved analogs; narration uses ONLY retrieved facts — any unsourced number discards it"
               sources={[]}
             />
-          </h2>
-        </div>
-        <span className={`label-caps rounded px-2 py-0.5 text-[9px] ${PLACE_STYLE[place]}`}>
-          {PLACE_LABEL[place]}
-        </span>
-      </header>
-      <p className="body-md leading-relaxed text-ink-2">{narrative}</p>
-      <p className="micro-mono mt-1 text-ink-3">
-        narrative: {narrSource} · every claim traces to a source below
-      </p>
-      <ul className="mt-2 flex flex-1 flex-col gap-2">
-        {analogs.map(({ episode, score }) => (
-          <li
-            key={episode.id}
-            className="rounded border border-hairline bg-navy-deep p-2"
+          </p>
+        </>
+      ),
+    },
+    ...analogs.map(({ episode, score }, i) => ({
+      id: episode.id,
+      body: (
+        <>
+          <span className="label-caps text-ink-3">
+            {i + 2} · {episode.name.toUpperCase()} ({episode.year})
+          </span>
+          <span className="stat-lg tabular-nums text-ink">
+            {episode.crude_move_pct > 0 ? "+" : ""}
+            {episode.crude_move_pct}%{" "}
+            <span className="headline-sm text-ink-2">crude</span>
+          </span>
+          <p className="body-md text-ink-2">{episode.outcome}</p>
+          <p className="micro-mono text-ink-3">
+            {(score * 100).toFixed(0)}% signature match to this run
+          </p>
+          <a
+            href={episode.source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="body-md mt-auto text-secondary underline decoration-secondary/40 hover:text-gold-hover"
           >
-            <div className="mb-1 flex items-center justify-between">
-              <a
-                href={episode.source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="body-md text-ink underline decoration-secondary/40 hover:text-gold-hover"
-              >
-                {episode.name} ({episode.year})
-              </a>
-              <span
-                className={`micro-mono tabular-nums ${
-                  episode.crude_move_pct >= 25
-                    ? "text-critical"
-                    : episode.crude_move_pct > 0
-                      ? "text-elevated"
-                      : "text-good-text"
-                }`}
-              >
-                crude {episode.crude_move_pct > 0 ? "+" : ""}
-                {episode.crude_move_pct}%
-              </span>
-            </div>
-            <p className="micro-mono text-ink-3">
-              {episode.outcome} ({(score * 100).toFixed(0)}% match ·{" "}
-              {episode.source.name})
-            </p>
-          </li>
-        ))}
-      </ul>
+            source: {episode.source.name} ↗
+          </a>
+        </>
+      ),
+    })),
+    {
+      id: "sowhat",
+      body: (
+        <>
+          <span className="label-caps text-ink-3">
+            {analogs.length + 2} · SO WHAT
+          </span>
+          <span className="data-lg text-ink">{PLACE_LABEL[place]}</span>
+          <p className="body-md text-ink-2">
+            History bounds this estimate — it doesn't prove it. Shocks like
+            this produced {bandLo > 0 ? "+" : ""}
+            {bandLo}% to +{bandHi}%.
+          </p>
+          <p className="caption mt-auto text-ink-3">
+            narrative: {narrSource} · every claim traces to the episode
+            sources in this deck
+          </p>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-1 flex-col justify-between gap-6 rounded-lg border border-hairline bg-panel p-4">
+      <h2 className="label-caps flex items-center gap-2 text-ink-3">
+        <span className="material-symbols-outlined text-[18px] text-ink-3">
+          history
+        </span>
+        HISTORICAL ANALOGS
+      </h2>
+      <button
+        onClick={() => setDeckOpen(true)}
+        className="label-caps flex w-full items-center justify-center gap-1 rounded border border-secondary/50 py-2 text-secondary transition-colors hover:bg-gold-wash"
+      >
+        Click here
+        <span className="material-symbols-outlined text-[14px]">
+          arrow_forward
+        </span>
+      </button>
+      {deckOpen && (
+        <CardDeck
+          title="Historical analogs — one episode at a time"
+          cards={deckCards}
+          onClose={() => setDeckOpen(false)}
+        />
+      )}
     </div>
   );
 }

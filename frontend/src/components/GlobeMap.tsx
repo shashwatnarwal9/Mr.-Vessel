@@ -28,7 +28,7 @@ import { annotateFleet, loadSanctionsIndex } from "../lib/sanctions";
 
 // arrow icons drawn on a canvas — no asset files. Sanctioned vessels
 // render red; shadow-fleet hotter (halo ring) per M6c.
-function shipArrow(fill = "#7dd3fc", halo = false): ImageData {
+function shipArrow(fill = "#7dd3fc", halo = false, glow = false): ImageData {
   const c = document.createElement("canvas");
   c.width = c.height = 28;
   const g = c.getContext("2d")!;
@@ -38,6 +38,10 @@ function shipArrow(fill = "#7dd3fc", halo = false): ImageData {
     g.strokeStyle = "rgba(255,68,68,0.7)";
     g.lineWidth = 2;
     g.stroke();
+  }
+  if (glow) {
+    g.shadowColor = fill;
+    g.shadowBlur = 7;
   }
   g.beginPath();
   g.moveTo(14, 4);
@@ -215,7 +219,7 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
             source: "corridor-labels",
             layout: {
               "text-field": ["get", "label"],
-              "text-size": 11,
+              "text-size": 12,
               "text-font": ["Open Sans Regular"],
             },
             paint: {
@@ -282,8 +286,8 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
 
     map.on("load", () => {
       map.addImage("ship-arrow", shipArrow());
-      map.addImage("ship-arrow-sanctioned", shipArrow("#d03b3b"));
-      map.addImage("ship-arrow-shadow", shipArrow("#ff4444", true));
+      map.addImage("ship-arrow-sanctioned", shipArrow("#d03b3b", false, true));
+      map.addImage("ship-arrow-shadow", shipArrow("#ff4444", true, true));
       map.addImage("ship-arrow-highlight", shipArrow("#0ca30c"));
       map.addSource("ships", {
         type: "geojson",
