@@ -1,0 +1,40 @@
+# Render Blueprint: full-stack Mr. Vessel from one repo.
+#   mr-vessel-api — Docker web service (always-on: SSE + WebSocket + polling loops)
+#   mr-vessel-web — static Vite SPA (never sleeps; reads the API URL at build time)
+# Secrets are sync:false → set in the dashboard (all optional; baked fallback).
+# If a name collides (onrender.com subdomains are global), Render appends a
+# suffix — then update the cross-URLs below and redeploy the frontend.
+services:
+  - type: web
+    name: mr-vessel-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: CORS_ORIGINS
+        value: https://mr-vessel-web.onrender.com
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: AIS_API_KEY
+        sync: false
+      - key: CUOPT_API_KEY
+        sync: false
+      - key: FUEL_PRICE_API_KEY
+        sync: false
+
+  - type: web
+    name: mr-vessel-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_HTTP
+        value: https://mr-vessel-api.onrender.com
+      - key: VITE_API_WS
+        value: wss://mr-vessel-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
