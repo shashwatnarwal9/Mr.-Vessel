@@ -1,5 +1,4 @@
 import { backtest2022 } from "../lib/backtest";
-import Why from "./Why";
 
 // dataviz: two series → legend + direct labels (dark slots 1 & 2 are in
 // the CVD floor band, so direct labels are mandatory, not optional)
@@ -28,11 +27,6 @@ export default function Backtest() {
         </h2>
         <span className="text-lg font-semibold text-white">
           {matchPct.toFixed(1)}% match
-          <Why
-            tag="derived"
-            formula="100 − MAPE(modelled vs actual Delhi EOM petrol, 2022); modelled = Dec-21 base + Δ Brent × pass-through × policy damping — same engine as the live panels"
-            sources={["pass_through_inr_per_usd_bbl", "policy_pass_through"]}
-          />
         </span>
       </div>
       <svg width={W} height={H} role="img" aria-label={`2022 backtest: ${matchPct.toFixed(1)} percent match between modelled and actual Delhi pump price`}>

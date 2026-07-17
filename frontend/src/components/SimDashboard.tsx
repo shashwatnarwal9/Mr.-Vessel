@@ -26,7 +26,6 @@ import CardDeck, { type DeckCard } from "./CardDeck";
 import PageIntro from "./PageIntro";
 import ValidationPanel from "./ValidationPanel";
 import HistoricalContext from "./HistoricalContext";
-import Why from "./Why";
 
 const BLUE = "#3987e5";
 const RED = "#e66767";
@@ -265,6 +264,8 @@ export default function SimDashboard() {
     nameOverride?: string,
     physicalShortfallOverride?: number,
     extras?: (traj: ReturnType<typeof simulate>) => Partial<RunResult>,
+    persist = true, // "Reset to actual (PPAC)" re-runs for the graphs but is
+    // a baseline preview, not a scenario the user built — keep it out of Past Sims
   ) => {
     setRunning(true);
     setSaved(false);
@@ -281,8 +282,10 @@ export default function SimDashboard() {
     const name = () => nameOverride ?? (runName.trim() || autoName(disruptions));
     setResult(res);
     // every run is stored immediately; fans + custom name update it in place
-    saveRun(toSavedRun(res, name()));
-    bumpPastSims();
+    if (persist) {
+      saveRun(toSavedRun(res, name()));
+      bumpPastSims();
+    }
     // MC fans off-thread; result + saved entry upgrade when they land
     workerRef.current?.terminate();
     const w = new Worker(new URL("../workers/mc.ts", import.meta.url), {
@@ -291,7 +294,7 @@ export default function SimDashboard() {
     w.onmessage = (e: MessageEvent<McResult>) => {
       setResult((r) => {
         const upgraded = r ? { ...r, fans: e.data } : r;
-        if (upgraded) {
+        if (upgraded && persist) {
           saveRun(toSavedRun(upgraded, name()));
           bumpPastSims();
         }
@@ -307,11 +310,19 @@ export default function SimDashboard() {
   // manual run (v7): shock panel × import-mix panel, COUPLED.
   // mixOverride lets "apply mitigation" re-run with the new mix at once
   // (setMix is async — state wouldn't be fresh yet).
-  const run = (mixOverride?: Mix) => {
+  const run = (mixOverride?: Mix, persist = true) => {
     const disruptions = { hormuz: pi, redsea: draft.redsea, opec: draft.opec };
     if (suppliers.length === 0) {
       // mix data unavailable → legacy σ-share path still works
-      execute(disruptions, aggregateShortfall(draft.ships), [...draft.ships]);
+      execute(
+        disruptions,
+        aggregateShortfall(draft.ships),
+        [...draft.ships],
+        undefined,
+        undefined,
+        undefined,
+        persist,
+      );
       return;
     }
     const norm = normalizeMix(mixOverride ?? mix);
@@ -332,6 +343,7 @@ export default function SimDashboard() {
         mitigation,
         reasoning: runReasoning(disruptions, coupled, traj),
       }),
+      persist,
     );
   };
 
@@ -462,10 +474,6 @@ export default function SimDashboard() {
                 </span>
                 <p className="body-md mt-auto text-ink-2">
                   A full tank costs about ₹{(delta * 35).toFixed(0)} more.
-                  <Why
-                    formula="settled pump price = day-90 value of this run's trajectory; tank cost = Δ₹/L × 35 L vs the ₹105 Delhi base"
-                    sources={["pump_baseline_inr_l", "pass_through_inr_per_usd_bbl"]}
-                  />
                 </p>
               </>
             ),
@@ -494,10 +502,6 @@ export default function SimDashboard() {
                 <p className="body-md mt-auto text-ink-2">
                   Only about half the crude shock reaches the pump — the
                   government absorbs the rest.
-                  <Why
-                    formula="pump = base + Δcrude × pass-through × policy damping (0.5, calibrated on the 2022 episode — calibration, not validation)"
-                    sources={["pass_through_inr_per_usd_bbl", "policy_pass_through"]}
-                  />
                 </p>
               </>
             ),
@@ -518,10 +522,6 @@ export default function SimDashboard() {
                 <p className="body-md mt-auto text-ink-2">
                   Barrels × price rise × 90 days — a bill that pressures the
                   rupee and growth.
-                  <Why
-                    formula={`${(COEFF.india_imports_bbl_d.value / 1e6).toFixed(1)}M bbl/day imports × $${dCrude.toFixed(0)}/bbl × 90 days; GDP link via the RBI oil-to-growth coefficient`}
-                    sources={["india_imports_bbl_d", "gdp_pp_per_10usd"]}
-                  />
                 </p>
               </>
             ),
@@ -540,10 +540,6 @@ export default function SimDashboard() {
                   {cliffDay >= 0
                     ? `The reserve shields refiners until ~day ${cliffDay}.`
                     : "The reserve holds for all 90 days."}
-                  <Why
-                    formula="descriptive stats of this run's own trajectory: max, argmax, and the first day run-rate drops below 98%"
-                    sources={["spr_days_cover", "draw_cap_share"]}
-                  />
                 </p>
               </>
             ),
@@ -599,10 +595,6 @@ export default function SimDashboard() {
                   Re-sourcing recovers{" "}
                   {((m.before - m.after) / 1000).toFixed(0)}k bbl/day — the
                   rest is capped out.
-                  <Why
-                    formula="shortfall before/after the greedy re-sourcing pass; caps = each supplier's cited spare capacity (IEA)"
-                    sources={["india_imports_bbl_d"]}
-                  />
                 </p>
               </>
             ),
@@ -656,10 +648,6 @@ export default function SimDashboard() {
                 <p className="body-md text-ink-2">
                   The reserve and lower demand absorb this — it's already in
                   the charts.
-                  <Why
-                    formula={`${m.residualNote}. residual = shortfall after re-sourcing; absorbed via SPR draw (≤70% of daily gap) + price-elastic demand`}
-                    sources={["spr_days_cover", "draw_cap_share", "price_elasticity_pct_per_pct"]}
-                  />
                 </p>
                 {m.moves.length > 0 && (
                   <button
@@ -729,13 +717,16 @@ export default function SimDashboard() {
             <header className="flex items-center justify-between border-b border-hairline px-4 py-2">
               <h2 className="label-caps text-ink-3">
                 INDIA'S SUPPLY MIX
-                <Why
-                  formula="shortfall is computed JOINTLY: at_risk = share × Σ corridor-exposure × disruption; lost = at_risk × (1 − reroutable). The mix decides how much a closure actually bites."
-                  sources={["india_imports_bbl_d"]}
-                />
               </h2>
               <button
-                onClick={() => setMix(defaultMix(suppliers))}
+                onClick={() => {
+                  const dm = defaultMix(suppliers);
+                  setMix(dm);
+                  setMixCorrected(false);
+                  // refresh the graphs to the PPAC baseline, but don't file
+                  // this preview run under Past Simulations
+                  run(dm, false);
+                }}
                 className="label-caps flex items-center gap-1 text-secondary transition-colors hover:text-gold-hover"
               >
                 <span className="material-symbols-outlined text-[14px]">
@@ -1000,10 +991,6 @@ export default function SimDashboard() {
                 </h3>
                 <p className="body-md text-[#f9b898]">
                   {headline(result)}
-                  <Why
-                    formula="range = 5th–95th percentile of 10,000 Monte Carlo futures at day 90; growth = 90-day mean drag"
-                    sources={["pass_through_inr_per_usd_bbl", "policy_pass_through", "gdp_pp_per_10usd"]}
-                  />
                 </p>
               </div>
             </section>
@@ -1150,10 +1137,6 @@ export default function SimDashboard() {
               <section className="rounded-lg border border-hairline bg-panel">
                 <h2 className="label-caps border-b border-hairline px-4 py-2 text-ink-3">
                   WHY THESE NUMBERS
-                  <Why
-                    formula="each sentence is generated from this run's own engine state — the same shortfall, buffer, pass-through and drag values the graphs plot"
-                    sources={["policy_pass_through", "spr_days_cover", "draw_cap_share"]}
-                  />
                 </h2>
                 <ul className="flex flex-col gap-2 p-4">
                   {result.reasoning.map((line, i) => (

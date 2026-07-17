@@ -5,6 +5,7 @@ import GlobeMap from "./components/GlobeMap";
 import { useStore } from "./store";
 import NarrativeCard from "./components/NarrativeCard";
 import SimDashboard from "./components/SimDashboard";
+import WarCabinet from "./components/WarCabinet";
 import StoryBanner from "./components/StoryBanner";
 import PastSims from "./components/PastSims";
 import ShipSimulator from "./components/ShipSimulator";
@@ -115,6 +116,7 @@ export default function CommandApp() {
           <NarrativeCard />
         </>
       )}
+      {tab === "War Cabinet" && <WarCabinet />}
       {tab === "Simulation Dashboard" && <SimDashboard />}
       {tab === "Ship Simulator" && <ShipSimulator />}
       {tab === "Past Simulations" && <PastSims />}

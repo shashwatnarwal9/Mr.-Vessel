@@ -33,27 +33,38 @@ export default function KGPanel() {
   const pi = useStore((s) => s.pi);
   const scenario = useStore((s) => s.activeScenario);
   const setCascadeFocus = useStore((s) => s.setCascadeFocus);
+  const setPi = useStore((s) => s.setPi);
+  const setNarrative = useStore((s) => s.setNarrative);
   const chokepoint = CHOKEPOINT[scenario];
   const [kg, setKg] = useState<KG | null>(null);
   const [idx, setIdx] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
+  // scenario change → drop the stale cascade and rewind to stage 1
   useEffect(() => {
-    setKg(null); // scenario changed → drop the stale cascade before refetching
+    setKg(null);
     setIdx(0);
-    if (pi < ALERT_PI_THRESHOLD || !chokepoint) return;
+    setPlaying(false);
+    setDismissed(false); // new scenario → bring the carousel back
+  }, [chokepoint]);
+
+  // Fetch keyed on a BOOLEAN gate, not pi itself: a preset σ-ramp changes pi
+  // every 350ms, and keying on pi re-ran this each tick (blank→stage-1 flicker,
+  // the "keeps playing again" bug). The gate flips once when σ crosses the
+  // threshold, so the cascade fetches once and then holds.
+  const active = pi >= ALERT_PI_THRESHOLD && !!chokepoint;
+  useEffect(() => {
+    if (!active || !chokepoint) return;
     let alive = true;
-    // debounce: a preset σ-ramp changes pi every tick — fetch once it settles
-    const t = setTimeout(() => {
-      fetch(`${API}/kg/cascade?chokepoint=${encodeURIComponent(chokepoint)}`)
-        .then((r) => r.json())
-        .then((data) => alive && setKg(data))
-        .catch(() => {}); // backend absent → enrichment simply stays hidden
-    }, 300);
+    fetch(`${API}/kg/cascade?chokepoint=${encodeURIComponent(chokepoint)}`)
+      .then((r) => r.json())
+      .then((data) => alive && setKg(data))
+      .catch(() => {}); // backend absent → enrichment simply stays hidden
     return () => {
       alive = false;
-      clearTimeout(t);
     };
-  }, [pi, chokepoint]);
+  }, [active, chokepoint]);
 
   const stages = LAYERS.map((layer) => ({
     layer,
@@ -63,10 +74,23 @@ export default function KGPanel() {
   const i = Math.min(idx, Math.max(0, n - 1));
   const stage = stages[i];
 
+  // play: advance one stage every 2.5s, then STOP at the last stage (Sector)
+  // — deliberately no wraparound, so it never loops forever
+  useEffect(() => {
+    if (!playing) return;
+    if (i >= n - 1) {
+      setPlaying(false);
+      return;
+    }
+    const t = setTimeout(() => setIdx(i + 1), 2500);
+    return () => clearTimeout(t);
+  }, [playing, i, n]);
+
   // walk the map with the carousel: resolve this stage's places and hand
   // them to GlobeMap (which highlights + frames them)
   useEffect(() => {
-    if (!stage) {
+    // dismissed → drop the map focus so the dimming/highlight clears too
+    if (dismissed || !stage) {
       setCascadeFocus(null);
       return;
     }
@@ -80,12 +104,12 @@ export default function KGPanel() {
     return () => {
       alive = false;
     };
-  }, [stage?.layer, kg, setCascadeFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stage?.layer, kg, setCascadeFocus, dismissed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // leaving the cascade (σ drops, scenario change, tab switch) clears the map
   useEffect(() => () => setCascadeFocus(null), [setCascadeFocus]);
 
-  if (pi < ALERT_PI_THRESHOLD || !chokepoint || !kg || n === 0 || !stage)
+  if (dismissed || pi < ALERT_PI_THRESHOLD || !chokepoint || !kg || n === 0 || !stage)
     return null;
 
   const hit = stage.layer === "Chokepoint";
@@ -136,13 +160,40 @@ export default function KGPanel() {
         {i + 1}/{n}
       </span>
       <button
+        onClick={() => setPlaying((p) => !p)}
+        aria-label={playing ? "Pause auto-play" : "Play through stages"}
+        title={playing ? "Pause" : "Play"}
+        className={`material-symbols-outlined shrink-0 rounded-full border p-0.5 text-[18px] transition-colors ${
+          playing
+            ? "border-secondary text-secondary"
+            : "border-hairline text-ink-2 hover:border-secondary hover:text-ink"
+        }`}
+      >
+        {playing ? "pause" : "play_arrow"}
+      </button>
+      <button
         onClick={() => setIdx((i + 1) % n)}
         aria-label="Next stage"
         className="material-symbols-outlined shrink-0 rounded-full border border-hairline p-0.5 text-[18px] text-ink-2 transition-colors hover:border-secondary hover:text-ink"
       >
         chevron_right
       </button>
-      <span className="micro-mono shrink-0 pr-1 text-ink-3">({kg.mode})</span>
+      <span className="micro-mono shrink-0 text-ink-3">({kg.mode})</span>
+      <button
+        onClick={() => {
+          // full reset: end the scenario, drop σ, clear the map focus/narrative
+          setPlaying(false);
+          setDismissed(true);
+          setCascadeFocus(null);
+          setNarrative(null);
+          setPi(0);
+        }}
+        aria-label="Close simulation"
+        title="Close"
+        className="material-symbols-outlined shrink-0 rounded-full border border-hairline p-0.5 text-[18px] text-ink-2 transition-colors hover:border-critical hover:text-critical"
+      >
+        close
+      </button>
     </aside>
   );
 }

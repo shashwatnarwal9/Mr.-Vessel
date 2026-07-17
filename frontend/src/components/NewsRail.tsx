@@ -120,9 +120,6 @@ export default function NewsRail() {
             </div>
             <p className="body-md leading-snug text-ink">{n.title}</p>
             <div className="mt-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[12px] text-ink-3">
-                info
-              </span>
               <span className="label-caps text-ink-2">
                 {n.tag} · Source: {n.source}
               </span>

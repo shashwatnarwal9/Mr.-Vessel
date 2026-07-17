@@ -21,7 +21,7 @@ export default function PageIntro({
       <p className="body-md text-ink-3">{intro}</p>
       {showHint && (
         <div className="mt-2 flex items-center justify-between gap-3 rounded border border-secondary bg-gold-wash p-2">
-          <p className="body-md flex items-center gap-2 leading-snug text-secondary"><span className="material-symbols-outlined text-[16px]">info</span>{hint}</p>
+          <p className="body-md leading-snug text-secondary">{hint}</p>
           <button
             onClick={() => {
               localStorage.setItem(key, "seen");

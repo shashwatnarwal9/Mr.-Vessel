@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type Tab =
   | "Command Map"
+  | "War Cabinet"
   | "Simulation Dashboard"
   | "Ship Simulator"
   | "Past Simulations";
@@ -103,7 +104,7 @@ type State = {
   setActiveScenario: (s: "hormuz" | "redsea" | "opec") => void;
   selectedCorridor: string | null; // M6e click-through (panel row or map)
   setSelectedCorridor: (id: string | null) => void;
-  highlightMmsi: number | null; // search hit: flash the ship green briefly
+  highlightMmsi: number | null; // flash the ship green briefly (set by setSelectedShip)
   setHighlightMmsi: (m: number | null) => void;
   // cascade walkthrough: the stage the KG carousel is on — the map
   // highlights and frames these points (empty = nationwide stage)
@@ -123,13 +124,26 @@ type State = {
   setPlainMode: (v: boolean) => void;
 };
 
+const FLASH_MS = 5000;
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useStore = create<State>((set, get) => ({
   selectedPlant: null,
   setSelectedPlant: (p) =>
     set({ selectedPlant: p, ...(p ? { selectedShip: null } : {}) }),
   selectedShip: null,
-  setSelectedShip: (s) =>
-    set({ selectedShip: s, ...(s ? { selectedPlant: null } : {}) }),
+  // selecting a ship flashes it green for 5s, from any path (map click,
+  // alert card, search/⌘K) — the flash lives here so no caller can skip it
+  setSelectedShip: (s) => {
+    if (flashTimer) clearTimeout(flashTimer);
+    if (s)
+      flashTimer = setTimeout(() => set({ highlightMmsi: null }), FLASH_MS);
+    set({
+      selectedShip: s,
+      highlightMmsi: s ? s.mmsi : null,
+      ...(s ? { selectedPlant: null } : {}),
+    });
+  },
   pi: 0,
   setPi: (pi) => set({ pi, piMode: "manual" }),
   piMode: "manual",

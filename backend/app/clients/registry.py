@@ -11,9 +11,13 @@ from typing import Any, Protocol
 
 import httpx
 
+from typing import AsyncIterator
+
 from ..config import (
     AIS_API_KEY,
     BAKED_DIR,
+    CABINET_KEYS,
+    CABINET_MODELS,
     CHAT_MODEL,
     CUOPT_API_KEY,
     EMBED_MODEL,
@@ -24,6 +28,7 @@ from ..config import (
 
 
 class LLMClient(Protocol):
+    model: str
     async def chat(self, prompt: str) -> str: ...
     async def embed(self, text: str) -> list[float]: ...
 
@@ -173,32 +178,53 @@ class BakedRouter:
 
 
 class NvidiaLLM:
-    """GLM-5.2 chat + bge-m3 embeddings over the OpenAI-compat endpoints."""
+    """Chat + bge-m3 embeddings over the OpenAI-compat NVIDIA endpoints.
+
+    Defaults reproduce the original GLM-5.2 client; pass model/api_key/base_url
+    to run a different NVIDIA-hosted model (the War Cabinet gives each minister
+    its own model, and the arbiter its own key)."""
 
     mode = "live"
 
-    def __init__(self) -> None:
-        # reasoning model: long think phase before content → generous timeout
+    def __init__(
+        self,
+        api_key: str = NVIDIA_API_KEY,
+        model: str = CHAT_MODEL,
+        base_url: str = NVIDIA_BASE_URL,
+    ) -> None:
+        self.model = model  # public: endpoints report which model answered
+        # reasoning models have a long think phase before content → generous timeout
         self._http = httpx.AsyncClient(
-            base_url=NVIDIA_BASE_URL,
-            headers={"Authorization": f"Bearer {NVIDIA_API_KEY}"},
+            base_url=base_url,
+            headers={"Authorization": f"Bearer {api_key}"},
             timeout=httpx.Timeout(420, connect=10),  # GLM queue measured at ~262s
         )
 
-    async def chat(self, prompt: str) -> str:
-        # stream=True is required in practice: non-streaming buffers the whole
-        # reasoning phase server-side and times out before headers arrive
-        content: list[str] = []
+    def _body(self, prompt: str, temperature: float) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+            "max_tokens": 8192,
+            "stream": True,  # non-streaming buffers the reasoning phase → times out
+        }
+
+    async def chat(self, prompt: str, temperature: float = 0) -> str:
+        return "".join([c async for c in self.chat_stream(prompt, temperature)])
+
+    async def chat_stream(
+        self, prompt: str, temperature: float = 0
+    ) -> AsyncIterator[str]:
+        """Yield content deltas as they arrive (the War Cabinet types live).
+
+        Some NVIDIA reasoning models (e.g. qwen3.5) stream their thinking in
+        `reasoning_content` and the answer in `content`; a few emit ONLY
+        reasoning_content. Prefer content; fall back to the buffered reasoning
+        as the answer if no content ever arrives, so a minister is never blank."""
+        saw_content = False
+        reasoning: list[str] = []
         async with self._http.stream(
-            "POST",
-            "/chat/completions",
-            json={
-                "model": CHAT_MODEL,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
-                "max_tokens": 8192,
-                "stream": True,
-            },
+            "POST", "/chat/completions", json=self._body(prompt, temperature)
         ) as r:
             r.raise_for_status()
             async for line in r.aiter_lines():
@@ -210,8 +236,12 @@ class NvidiaLLM:
                     continue
                 delta = choices[0].get("delta") or {}
                 if delta.get("content"):
-                    content.append(delta["content"])
-        return "".join(content)
+                    saw_content = True
+                    yield delta["content"]
+                elif delta.get("reasoning_content"):
+                    reasoning.append(delta["reasoning_content"])
+        if not saw_content and reasoning:
+            yield "".join(reasoning)
 
     async def embed(self, text: str) -> list[float]:
         r = await self._http.post(
@@ -226,12 +256,32 @@ class StubLLM:
     """No baked LLM: absent key -> feature reports unavailable, never faked."""
 
     mode = "unavailable"
+    model = "unavailable"
 
-    async def chat(self, prompt: str) -> str:
+    async def chat(self, prompt: str, temperature: float = 0) -> str:
         raise RuntimeError("NVIDIA_API_KEY missing: LLM features disabled")
+
+    async def chat_stream(
+        self, prompt: str, temperature: float = 0
+    ) -> AsyncIterator[str]:
+        raise RuntimeError("NVIDIA_API_KEY missing: LLM features disabled")
+        yield  # pragma: no cover — marks this an async generator
 
     async def embed(self, text: str) -> list[float]:
         raise RuntimeError("NVIDIA_API_KEY missing: embeddings disabled")
+
+
+# one client per cabinet role, built once (each may carry a distinct key/model)
+_CABINET: dict[str, Any] = {}
+
+
+def llm_for(role: str) -> Any:
+    """Cabinet LLM for 'fm' | 'dm' | 'pm'. Falls back to StubLLM when the role's
+    key is absent, so a missing key degrades one minister, never the app."""
+    if role not in _CABINET:
+        key, model = CABINET_KEYS.get(role, ""), CABINET_MODELS.get(role, CHAT_MODEL)
+        _CABINET[role] = NvidiaLLM(key, model) if key else StubLLM()
+    return _CABINET[role]
 
 
 def build_clients() -> dict[str, Any]:

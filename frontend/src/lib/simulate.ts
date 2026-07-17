@@ -48,6 +48,13 @@ export type SimInput = {
    *  (the import-mix decides how much a closure bites); world-price and
    *  freight channels still run off the disruption values. */
   physicalShortfallOverride?: number; // bbl/day, σ-mode-scaled per day
+  /** War Cabinet DM lever (defaults to the calibrated coefficient when unset,
+   *  so absent === current behaviour). sprDrawCapShare — strategic-reserve
+   *  release: fraction of the daily supply gap the inventory buffer may cover
+   *  (base draw_cap_share=0.7; a release raises it toward 1.0). The Hormuz
+   *  bypass is already credited at its cited 0.30 ceiling in the baseline, so
+   *  there is deliberately no "more bypass" lever. */
+  sprDrawCapShare?: number;
   days?: number;
 };
 
@@ -77,6 +84,8 @@ export function simulate(input: SimInput, P = SIM, base = BASE): Trajectory {
   const anyDisruption = d0.hormuz > 0 || d0.redsea > 0 || d0.opec > 0;
   const mode = input.mode ?? "sustained";
   const shipShortfall = input.shortfallBblPerDay ?? [];
+  // DM strategic-reserve release lever (defaults to calibrated coefficient)
+  const drawCapShare = clamp01(input.sprDrawCapShare ?? P.drawCapShare);
 
   const out: Trajectory = {
     day: [], run_rate: [], fuel_price: [], power_stress: [],
@@ -118,7 +127,7 @@ export function simulate(input: SimInput, P = SIM, base = BASE): Trajectory {
 
     // inventory absorbs most of the gap (logistics-capped) until it runs out
     const gapDays = eff / P.importsBblPerDay; // shortfall in days-of-import
-    const draw = Math.min(inventory, gapDays * P.drawCapShare);
+    const draw = Math.min(inventory, gapDays * drawCapShare);
     inventory -= draw;
     const uncovered = gapDays - draw; // hits refinery runs directly
     const run_rate = clamp01(1 - uncovered);

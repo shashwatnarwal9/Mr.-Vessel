@@ -87,6 +87,37 @@ async def rag_narrate(body: dict):
         return {"text": None}
 
 
+@app.post("/scenario/parse")
+async def scenario_parse(body: dict):
+    """War Cabinet: free-text crisis -> baseline disruption channels (σ), never raises."""
+    from . import scenario_parse as sp
+
+    return await sp.parse_scenario(str(body.get("prompt", "")), clients["llm"])
+
+
+@app.post("/cabinet/minister")
+async def cabinet_minister(body: dict, role: str = "fm"):
+    """Stream a minister's POV + PolicyLevers (role: fm | dm)."""
+    from . import cabinet
+
+    if role not in ("fm", "dm"):
+        role = "fm"
+    stream = cabinet.stream_minister(role, str(body.get("crisis", "")), body.get("baseline_facts", {}))
+    return StreamingResponse(stream, media_type="text/event-stream")
+
+
+@app.post("/cabinet/pm")
+async def cabinet_pm(body: dict):
+    """Stream the PM's verdict + final PolicyLevers (runs on its own model/key)."""
+    from . import cabinet
+
+    stream = cabinet.stream_pm(
+        str(body.get("crisis", "")), body.get("baseline_facts", {}),
+        body.get("fm", {}), body.get("dm", {}),
+    )
+    return StreamingResponse(stream, media_type="text/event-stream")
+
+
 @app.get("/market/pump")
 async def market_pump():
     try:

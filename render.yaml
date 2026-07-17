@@ -23,6 +23,8 @@ services:
         sync: false
       - key: FUEL_PRICE_API_KEY
         sync: false
+      - key: GUARDIAN_API_KEY
+        sync: false
 
   - type: web
     name: mr-vessel-web

@@ -10,9 +10,11 @@ import json
 from typing import Any, AsyncIterator
 
 POLL_S = 300  # GLM tagging can take minutes; never stack poll calls
-# A GDELT 429 shouldn't cost a whole poll cycle — but retry gently: its
-# throttle is a rolling per-IP window, so hammering keeps you inside it.
-RETRY_S = 90
+# A failed poll must NOT retry fast: GDELT's throttle is a rolling per-IP
+# window and a 90s retry kept us pinned in the penalty box for hours (it
+# never got a chance to clear). Back off to the full cycle — the whole point
+# of the disk cache + never-regress is that a degraded poll costs nothing.
+RETRY_S = 300
 KEEPALIVE_S = 25
 
 

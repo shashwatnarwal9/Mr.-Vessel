@@ -13,6 +13,7 @@ const CommandApp = lazy(() => import("./CommandApp"));
 
 const TABS: { tab: Tab; hash: string }[] = [
   { tab: "Command Map", hash: "#command" },
+  { tab: "War Cabinet", hash: "#cabinet" },
   { tab: "Simulation Dashboard", hash: "#dashboard" },
   { tab: "Ship Simulator", hash: "#ship" },
   { tab: "Past Simulations", hash: "#past" },

@@ -15,6 +15,8 @@ from typing import Any
 
 import httpx
 
+from ..config import GUARDIAN_API_KEY
+
 # Last good LIVE batch, cached across restarts. Without it every boot shows
 # the dated snapshot until a poll completes (GDELT retry + GLM queue ≈ 3 min),
 # which is what made a freshly-launched app look two days stale.
@@ -22,6 +24,11 @@ CACHE_FILE = Path(tempfile.gettempdir()) / "mrvessel_news_live.json"
 CACHE_MAX_AGE_S = 6 * 3600  # older than this and the snapshot is no worse
 
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
+GUARDIAN_URL = "https://content.guardianapis.com/search"
+# match HEADLINES only (query-fields=headline) — a bare q searches full body,
+# so constantly-updated liveblogs that mention any topic swamp "newest".
+# Multi-word terms are quoted so they're phrases, not AND-of-words.
+GUARDIAN_QUERY = 'hormuz OR opec OR suez OR tanker OR "red sea" OR "crude oil" OR "oil price"'
 QUERY = (
     '(hormuz OR "red sea" OR suez OR opec OR "crude oil india" '
     'OR "israel energy" OR "egypt energy") sourcelang:english'
@@ -118,6 +125,42 @@ class GdeltGlmNews:
             except json.JSONDecodeError:
                 return []  # 200 + plain-text scolding = throttled too
 
+    async def _fetch_guardian(self) -> list[dict[str, Any]]:
+        """Real-time fallback when GDELT 429s. Keyless GDELT is primary; this
+        only runs when GDELT gave us nothing, so the free 5,000/day budget is
+        never a concern. Normalised to GDELT's article shape so the shared
+        tagger is unchanged. webPublicationDate is already ISO-8601 Z, so it
+        passes through _iso() untouched.
+        """
+        if not GUARDIAN_API_KEY:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=20) as http:
+                r = await http.get(
+                    GUARDIAN_URL,
+                    params={
+                        "api-key": GUARDIAN_API_KEY,
+                        "q": GUARDIAN_QUERY,
+                        "query-fields": "headline",
+                        "order-by": "newest",
+                        "page-size": MAX_ITEMS,
+                    },
+                )
+            if r.status_code != 200:
+                return []
+            results = r.json().get("response", {}).get("results") or []
+        except (httpx.HTTPError, json.JSONDecodeError):
+            return []
+        return [
+            {
+                "title": a["webTitle"],
+                "seendate": a.get("webPublicationDate", ""),
+                "domain": "The Guardian",
+            }
+            for a in results
+            if a.get("webTitle")
+        ][:MAX_ITEMS]
+
     async def _degraded(self) -> list[dict[str, Any]]:
         """Never regress: the last live batch beats the dated snapshot."""
         if self.last_live:
@@ -127,10 +170,14 @@ class GdeltGlmNews:
     async def latest(self) -> list[dict[str, Any]]:
         try:
             arts = await self._fetch_gdelt()
+            if not arts:  # GDELT throttled → try the real-time fallback source
+                arts = await self._fetch_guardian()
             if not arts:
                 return await self._degraded()
             headlines = "\n".join(f"{i}. {a['title']}" for i, a in enumerate(arts))
-            reply = await self._llm.chat(_PROMPT.format(headlines=headlines))
+            # .replace, NOT .format: the prompt contains a literal JSON example
+            # `[{"i": 0, ...}]` whose braces str.format reads as fields (KeyError).
+            reply = await self._llm.chat(_PROMPT.replace("{headlines}", headlines))
             tagged = parse_tags(reply, len(arts))
             items = [
                 {
@@ -161,4 +208,10 @@ if __name__ == "__main__":
     t = parse_tags(reply, 3)
     assert t == {0: ("Hormuz", 5), 2: ("fuel", 3)}, t
     assert _iso("20260715T051000Z") == "2026-07-15T05:10:00Z"
+    # Guardian webPublicationDate is already ISO-8601 Z → passes through untouched
+    assert _iso("2026-07-17T05:10:00Z") == "2026-07-17T05:10:00Z"
+    # prompt substitution must NOT choke on the literal JSON braces in the
+    # example (str.format did → KeyError → tagging never ran → stale news)
+    built = _PROMPT.replace("{headlines}", "0. Test headline")
+    assert "0. Test headline" in built and '{"i": 0' in built, "prompt substitution broke"
     print("gdelt parser OK")

@@ -10,7 +10,6 @@ import {
 } from "../lib/history";
 import { BASE } from "../lib/cascade";
 import CardDeck, { type DeckCard } from "./CardDeck";
-import Why from "./Why";
 
 const API = import.meta.env.VITE_API_HTTP ?? "http://localhost:8000";
 
@@ -141,11 +140,6 @@ export default function HistoricalContext({
             >
               {PLACE_LABEL[place]}
             </span>
-            <Why
-              tag="derived"
-              formula="top-3 cosine match over normalized [hormuz, redsea, supply-cut, Δcrude, duration] signatures vs 28 real episodes; band = min–max crude move of the retrieved analogs; narration uses ONLY retrieved facts — any unsourced number discards it"
-              sources={[]}
-            />
           </p>
         </>
       ),
