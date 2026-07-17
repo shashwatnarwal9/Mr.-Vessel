@@ -4,6 +4,7 @@ import { useStore } from "../store";
 import {
   addedDays,
   freightDeltaUsd,
+  isRoutable,
   routeFromPosition,
   NODES,
   type Chokepoint,
@@ -11,7 +12,6 @@ import {
 } from "../lib/routeGraph";
 import { estimateCargoBbl } from "../lib/ships";
 import PageIntro from "./PageIntro";
-import Why from "./Why";
 
 const API = import.meta.env.VITE_API_HTTP ?? "http://localhost:8000";
 const SPEED_NM_PER_DAY_BASE = 24;
@@ -70,18 +70,21 @@ export default function ShipSimulator() {
   const mapDiv = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
+  // the whole fleet is selectable (the list scrolls) — but only vessels the
+  // route graph can honestly join to a sea lane. Anything further than the
+  // snap limit from every waypoint would have to be drawn across land.
   const candidates = useMemo(() => {
     const all = ships?.features ?? [];
     const q = query.trim().toLowerCase();
     return all
+      .filter((f) => isRoutable(f.geometry.coordinates))
       .filter(
         (f) =>
           !q ||
           f.properties.name.toLowerCase().includes(q) ||
           String(f.properties.mmsi).includes(q) ||
           String(f.properties.imo ?? "").includes(q),
-      )
-      .slice(0, 8);
+      );
   }, [ships, query]);
 
   const ship = ships?.features.find((f) => f.properties.mmsi === selected) ?? null;
@@ -330,6 +333,9 @@ export default function ShipSimulator() {
                 directions_boat
               </span>
               <h2 className="label-caps text-ink-3">Select Vessel</h2>
+              <span className="micro-mono ml-auto text-ink-3">
+                {candidates.length}
+              </span>
             </div>
             <div className="relative">
               <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[16px] text-ink-3">
@@ -343,7 +349,7 @@ export default function ShipSimulator() {
                 className="body-md w-full rounded border border-hairline bg-navy-deep py-2 pl-8 pr-2 text-ink outline-none placeholder:text-ink-3 focus:border-secondary"
               />
             </div>
-            <ul className="flex max-h-44 flex-col gap-1 overflow-y-auto pr-1">
+            <ul className="flex max-h-60 flex-col gap-1 overflow-y-auto pr-1">
               {candidates.map((f) => (
                 <li key={f.properties.mmsi}>
                   <button
@@ -467,10 +473,6 @@ export default function ShipSimulator() {
                 </span>
                 <h2 className="label-caps text-ink-3">
                   Simulation Result
-                  <Why
-                    formula="distances = Haversine over the waypoint network (Dijkstra, blocked chokepoints removed); added days = Δnm ÷ (speed × 24); freight = added days × $/bbl/day × cargo. cuOpt (NVIDIA) verifies the cost when the backend is live."
-                    sources={["freight_usd_per_bbl_day"]}
-                  />
                 </h2>
               </div>
               <div className="flex items-center gap-1">

@@ -1,20 +1,16 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
+import { REFINERIES } from "../lib/power";
 
 /** Per-refinery run-rate map: each refinery highlighted on a dark India
  *  map with a tag above it showing its current run rate. Presentation
  *  only — rows come straight from perRefineryRunRate(). */
 type Row = { name: string; port: string; runRate: number };
 
-// refinery site coordinates [lon, lat] (geographic constants)
-const COORDS: Record<string, [number, number]> = {
-  "RIL Jamnagar": [70.05, 22.35],
-  "Nayara Vadinar": [69.7, 22.47],
-  "BPCL Mumbai": [72.85, 19.03],
-  "MRPL Mangalore": [74.8, 12.99],
-  "BPCL Kochi": [76.24, 9.97],
-  "IOC Paradip": [86.61, 20.27],
-};
+// refinery sites — one source of truth (shared with the cascade walkthrough)
+const COORDS: Record<string, [number, number]> = Object.fromEntries(
+  REFINERIES.map((r) => [r.name, r.coords]),
+);
 
 const fc = (rows: Row[]) => ({
   type: "FeatureCollection" as const,

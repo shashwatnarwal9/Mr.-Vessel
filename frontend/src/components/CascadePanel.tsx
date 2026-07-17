@@ -2,18 +2,15 @@ import { useMemo } from "react";
 import { useTween } from "../lib/tween";
 import { useStore } from "../store";
 import { simulate } from "../lib/simulate";
-import Why from "./Why";
 
 function Stat({
   label,
   value,
   tone,
-  why,
 }: {
   label: string;
   value: string;
   tone: "ok" | "warn" | "bad";
-  why: React.ReactNode;
 }) {
   const toneCls = {
     ok: "text-good",
@@ -22,13 +19,8 @@ function Stat({
   }[tone];
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-navy-deep p-2">
-      <div className="label-caps text-ink-3">
-        {label}
-        {why}
-      </div>
-      <div className={`data-lg ${toneCls}`}>
-        {value}
-      </div>
+      <div className="label-caps text-ink-3">{label}</div>
+      <div className={`data-lg ${toneCls}`}>{value}</div>
     </div>
   );
 }
@@ -60,6 +52,7 @@ export default function CascadePanel() {
   const piMode = useStore((s) => s.piMode);
   const piFused = useStore((s) => s.piFused);
   const confidence = useStore((s) => s.confidence);
+  const fusedDriver = useStore((s) => s.fusedDriver);
   const setPiMode = useStore((s) => s.setPiMode);
   const plain = useStore((s) => s.plainMode);
   const scenario = useStore((s) => s.activeScenario);
@@ -128,50 +121,51 @@ export default function CascadePanel() {
           aria-label="Disruption severity"
         />
       </label>
+      {/* when a report — not the signal blend — set this number, say so */}
+      {piMode === "fused" && fusedDriver?.headline && (
+        <div className="flex flex-col gap-1 rounded border border-critical/40 bg-critical/10 p-2">
+          <span className="label-caps flex items-center gap-1 text-critical-text">
+            <span className="material-symbols-outlined text-[14px]">
+              campaign
+            </span>
+            set by reported closure · {Math.round(fusedDriver.pi * 100)}%
+          </span>
+          <span className="micro-mono leading-snug text-ink-2">
+            “{fusedDriver.headline}”
+          </span>
+          <span className="micro-mono text-ink-3">
+            {fusedDriver.source}
+            {fusedDriver.ts
+              ? ` · ${new Date(fusedDriver.ts).toLocaleString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : ""}
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <Stat
           label={plain ? "Refineries" : "Run rate (90d min)"}
           value={`${runMinT.toFixed(1)}%`}
           tone={tone(1 - runMin)}
-          why={
-            <Why
-              formula="1 − uncovered gap; gap = σ × Hormuz share × imports × (1−bypass), buffered by SPR draw (≤70% of gap) until stocks run out"
-              sources={["hormuz_import_share", "india_imports_bbl_d", "mitigation_hormuz", "spr_days_cover", "draw_cap_share"]}
-            />
-          }
         />
         <Stat
           label={plain ? "Petrol (Delhi)" : "Pump price (settled)"}
           value={`₹${pumpT.toFixed(1)}/L`}
           tone={tone(pi)}
-          why={
-            <Why
-              formula="base ₹105 + Δcrude × pass-through × policy damping × freight + domestic scarcity premium"
-              sources={["pump_baseline_inr_l", "pass_through_inr_per_usd_bbl", "policy_pass_through", "scarcity_inr_per_run_loss"]}
-            />
-          }
         />
         <Stat
           label={plain ? "Elec. at risk" : "Power stress (peak)"}
           value={`${stressT.toFixed(1)}%`}
           tone={tone(stressPeak * 4)}
-          why={
-            <Why
-              formula="σ × vulnerable generation share + refinery run-loss spillover"
-              sources={["vulnerable_power_share"]}
-            />
-          }
         />
         <Stat
           label={plain ? "Growth hit" : "GDP drag (90d mean)"}
           value={`${gdpT.toFixed(2)} pp`}
           tone={tone(-gdpMean / 2)}
-          why={
-            <Why
-              formula="−Δcrude/10 × RBI coefficient − run-loss × activity channel, averaged over 90 days"
-              sources={["gdp_pp_per_10usd", "gdp_pp_per_run_loss"]}
-            />
-          }
         />
       </div>
     </aside>

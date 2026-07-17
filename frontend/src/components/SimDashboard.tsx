@@ -175,8 +175,27 @@ export default function SimDashboard() {
     exposedPowerMW().then(setPowerMW).catch(() => {});
   }, []);
 
+  // the hull is 100%: a supplier can only take what the others leave free.
+  // Dragging past that clamps and says so, instead of silently overfilling.
+  const [mixToast, setMixToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
   const setShare = (id: string, v: number) => {
-    setMix((m) => ({ ...m, [id]: v }));
+    const others = Object.entries(mix).reduce(
+      (s, [k, val]) => (k === id ? s : s + val),
+      0,
+    );
+    const headroom = Math.max(0, 1 - others);
+    if (v > headroom + 1e-9) {
+      setMixToast(
+        `Import mix is capped at 100% — free up room by lowering another supplier first.`,
+      );
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => setMixToast(null), 2800);
+    }
+    setMix((m) => ({ ...m, [id]: Math.min(v, headroom) }));
     setMixCorrected(false);
   };
   const [running, setRunning] = useState(false);
@@ -664,6 +683,18 @@ export default function SimDashboard() {
 
   return (
     <div className="h-full overflow-y-auto bg-dim p-6">
+      {/* import-mix cap warning (transient) */}
+      {mixToast && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-critical bg-error-deep px-4 py-2 shadow-2xl"
+        >
+          <span className="body-md flex items-center gap-2 text-ink">
+            <span className="material-symbols-outlined text-[16px]">error</span>
+            {mixToast}
+          </span>
+        </div>
+      )}
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <PageIntro
           page="dashboard"
@@ -715,28 +746,34 @@ export default function SimDashboard() {
             </header>
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 p-4 md:grid-cols-2">
               {suppliers.map((s, i) => (
-                <label key={s.id} className="flex flex-col gap-1">
-                  <span className="flex items-end justify-between">
-                    <span className="body-md flex items-center gap-2 text-ink">
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ background: supplierColor(i) }}
-                      />
-                      {s.name}
-                    </span>
-                    <span className="micro-mono tabular-nums text-ink">
-                      {Math.round((mix[s.id] ?? 0) * 100)}%
-                    </span>
+                <label
+                  key={s.id}
+                  className="flex items-center gap-3 rounded border border-hairline bg-navy-deep p-2 transition-colors focus-within:border-secondary"
+                >
+                  {/* pump colour = this supplier's hold on the tanker below */}
+                  <span
+                    className="material-symbols-outlined shrink-0 text-[24px]"
+                    style={{ color: supplierColor(i) }}
+                    aria-hidden="true"
+                  >
+                    local_gas_station
                   </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={0.6}
-                    step={0.01}
-                    value={mix[s.id] ?? 0}
-                    onChange={(e) => setShare(s.id, Number(e.target.value))}
-                    aria-label={`Import share from ${s.name}`}
-                  />
+                  <span className="body-md min-w-0 flex-1 truncate text-ink">
+                    {s.name}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={Math.round((mix[s.id] ?? 0) * 100)}
+                      onChange={(e) => setShare(s.id, Number(e.target.value) / 100)}
+                      aria-label={`Import share from ${s.name}`}
+                      className="data-lg w-16 rounded border border-hairline bg-panel px-2 py-1 text-right text-ink focus:border-secondary focus:outline-none"
+                    />
+                    <span className="micro-mono text-ink-3">%</span>
+                  </span>
                 </label>
               ))}
               <div className="md:col-span-2">

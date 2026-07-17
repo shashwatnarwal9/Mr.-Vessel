@@ -81,7 +81,7 @@ The project's brand is honesty about what it knows. These rules are enforced in 
 
 | Rule | What it means on screen |
 |---|---|
-| **Every number is traceable** | Each displayed figure has an ⓘ popover showing the formula and the cited coefficients behind it, tagged `live` / `derived` / `cited`. |
+| **Every number is traceable** | Results carry an ⓘ popover showing the formula and the cited coefficients behind them, tagged `live` / `derived` / `cited` — on the Simulation Dashboard and inside the detail decks, where the reasoning lives. The map rails show the same figures clean; their provenance is one click away on the dashboard. |
 | **"Live" means live** | Features driven by baked snapshots are labeled "computed (snapshot \<date\>)", never "Live". Ship panels declare *live AIS* vs *demo fleet*. |
 | **Calibrated ≠ validated** | The 95.6% match on the 2022 backtest is *calibration* (the damping was fitted to that episode), and the UI says so. |
 | **Ranges, not decimals** | Headlines quote Monte Carlo bands, e.g. "+₹12–19/L". |
@@ -199,6 +199,35 @@ VITE_API_WS=ws://localhost:8000
 | `FUEL_PRICE_API_KEY` | [fuel.indianapi.in](https://fuel.indianapi.in) | Live Delhi pump price (1-hour cache — free tier is 100 requests) | Baked snapshot price |
 
 **Rotate any key you've shared** (chat, screen share, demo recording) once you're done.
+
+---
+
+## Deploying (Render)
+
+The repo ships a [`render.yaml`](render.yaml) Blueprint that stands up both services from one push:
+
+- **`mr-vessel-api`** — the FastAPI backend as a Docker web service. It must be an *always-on
+  container*: it holds SSE streams, a WebSocket, and background polling loops, so serverless
+  function hosts can't run it.
+- **`mr-vessel-web`** — the Vite frontend as a Static Site. It never sleeps, and reads the API URL
+  from `VITE_API_HTTP` / `VITE_API_WS` at **build time**.
+
+```bash
+# 1. push, then on Render: New → Blueprint → pick this repo → Apply
+# 2. add the four API keys on mr-vessel-api → Environment (optional; baked fallback without them)
+# 3. verify
+curl https://mr-vessel-api.onrender.com/health     # {"status":"ok",...}
+```
+
+Notes:
+- `onrender.com` subdomains are global — if a name is taken, Render appends a suffix; update
+  `VITE_API_HTTP` / `VITE_API_WS` and `CORS_ORIGINS` in `render.yaml` to the real URLs and redeploy
+  the frontend (Vite inlines those at build time).
+- **Neo4j isn't deployed** — the cascade endpoint falls back to the identical Python BFS.
+- On Render's free tier the backend sleeps after ~15 min idle (~40s cold start). The app still loads
+  and works on baked data during that window, then upgrades to live once the API wakes. Ping
+  `/health` before a demo (or use a free uptime pinger) to keep it warm.
+- Build the backend image locally first if you change it: `docker build -t mrv-api . && docker run -p 8000:8000 mrv-api`.
 
 ---
 

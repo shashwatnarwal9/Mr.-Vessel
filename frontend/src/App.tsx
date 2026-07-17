@@ -29,7 +29,6 @@ export default function App() {
     localStorage.setItem("mrvessel.hc", hc ? "1" : "0");
   }, [hc]);
   const setTab = useStore((s) => s.setTab);
-  const shipsMode = useStore((s) => s.shipsMode);
   // armed = heavy bundle mounted; inCommand = instrument replaces the hero
   const [armed, setArmed] = useState(() => location.hash in HASH_TO_TAB);
   const [inCommand, setInCommand] = useState(() => location.hash in HASH_TO_TAB);
@@ -77,29 +76,11 @@ export default function App() {
         }`}
       >
         <div className="flex items-center gap-8">
+          {/* the live/baked disclosure lives on the ship panel's chip
+              (Council C2: ship positions declare real vs simulated there) */}
           <button onClick={goHome} className="flex items-center gap-4">
             <span className="headline-sm font-black uppercase tracking-tight text-secondary">
               MR. VESSEL
-            </span>
-            <span className="mx-2 h-4 w-px bg-hairline" />
-            <span
-              className="flex items-center gap-1.5 rounded border border-hairline bg-low px-2 py-1"
-              title={
-                shipsMode === "live"
-                  ? "live AIS + market feeds connected"
-                  : "running on baked demo data"
-              }
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  shipsMode === "live" ? "pulse-dot bg-good" : "bg-ink-3"
-                }`}
-              />
-              <span
-                className={`label-caps ${shipsMode === "live" ? "text-good" : "text-ink-3"}`}
-              >
-                {shipsMode === "live" ? "LIVE" : "DEMO"}
-              </span>
             </span>
           </button>
           <div className="hidden items-center gap-4 md:flex">

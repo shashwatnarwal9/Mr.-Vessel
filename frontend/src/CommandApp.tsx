@@ -66,7 +66,11 @@ export default function CommandApp() {
 
   return (
     <main className="relative h-full overflow-hidden">
+      {/* the globe lives OUTSIDE the transition wrapper — remounting it on
+          every tab switch would rebuild the whole WebGL map */}
       <GlobeMap visible={tab === "Command Map"} />
+      {/* key={tab} → each view cross-fades in when you switch pages */}
+      <div key={tab} className="view-enter h-full">
       {tab === "Command Map" && (
         <>
           <div className={`${recede} ${spotlight ? "opacity-60" : ""}`}>
@@ -114,6 +118,7 @@ export default function CommandApp() {
       {tab === "Simulation Dashboard" && <SimDashboard />}
       {tab === "Ship Simulator" && <ShipSimulator />}
       {tab === "Past Simulations" && <PastSims />}
+      </div>
     </main>
   );
 }

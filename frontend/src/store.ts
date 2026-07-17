@@ -64,7 +64,19 @@ type State = {
   piMode: "manual" | "fused";
   piFused: number | null;
   confidence: number | null;
-  setFused: (pi: number, confidence: number) => void;
+  // the report that set π (a headline explicitly stating a closure)
+  fusedDriver: {
+    kind: string;
+    pi: number;
+    headline?: string;
+    source?: string;
+    ts?: string;
+  } | null;
+  setFused: (
+    pi: number,
+    confidence: number,
+    driver?: State["fusedDriver"],
+  ) => void;
   setPiMode: (m: "manual" | "fused") => void;
   ships: ShipsFC | null;
   shipsMode: "live" | "baked";
@@ -93,6 +105,18 @@ type State = {
   setSelectedCorridor: (id: string | null) => void;
   highlightMmsi: number | null; // search hit: flash the ship green briefly
   setHighlightMmsi: (m: number | null) => void;
+  // cascade walkthrough: the stage the KG carousel is on — the map
+  // highlights and frames these points (empty = nationwide stage)
+  cascadeFocus: {
+    layer: string;
+    points: { name: string; lonlat: [number, number] }[];
+  } | null;
+  setCascadeFocus: (
+    f: {
+      layer: string;
+      points: { name: string; lonlat: [number, number] }[];
+    } | null,
+  ) => void;
   narrative: string | null; // preset scenario blurb
   setNarrative: (n: string | null) => void;
   plainMode: boolean; // M7 story layer: plain-English labels
@@ -111,10 +135,12 @@ export const useStore = create<State>((set, get) => ({
   piMode: "manual",
   piFused: null,
   confidence: null,
-  setFused: (piFused, confidence) =>
+  fusedDriver: null,
+  setFused: (piFused, confidence, fusedDriver = null) =>
     set((s) => ({
       piFused,
       confidence,
+      fusedDriver,
       // news/market/ship fusion auto-drives the panel until the user takes
       // manual control of the slider (any drag switches to what-if mode)
       ...(s.piMode === "fused" || (s.piMode === "manual" && s.pi === 0)
@@ -178,6 +204,8 @@ export const useStore = create<State>((set, get) => ({
   setSelectedCorridor: (selectedCorridor) => set({ selectedCorridor }),
   highlightMmsi: null,
   setHighlightMmsi: (highlightMmsi) => set({ highlightMmsi }),
+  cascadeFocus: null,
+  setCascadeFocus: (cascadeFocus) => set({ cascadeFocus }),
   narrative: null,
   setNarrative: (narrative) => set({ narrative }),
   plainMode: true, // judges first: plain by default, expert opt-in

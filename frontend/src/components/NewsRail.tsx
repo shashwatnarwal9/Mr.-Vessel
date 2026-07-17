@@ -22,41 +22,40 @@ const SEV: Record<number, string> = {
 const SSE_URL =
   (import.meta.env.VITE_API_HTTP ?? "http://localhost:8000") + "/sse/news";
 
-// Tier 1 refresh: rotate the baked set with fresh timestamps; when the
-// backend is live the SSE feed supersedes it (Tier 2: triggers GDELT)
-function rotateBaked(items: NewsItem[]): NewsItem[] {
-  const shifted = [...items.slice(2), ...items.slice(0, 2)];
-  const now = Date.now();
-  return shifted.map((n, i) => ({
-    ...n,
-    ts: new Date(now - i * 3 * 3600_000).toISOString(),
-  }));
-}
-
 export default function NewsRail() {
   const [items, setItems] = useState<NewsItem[]>([]);
+  // "live" = really fetched now; "snapshot" = the dated curated set. The
+  // rail must never dress one up as the other.
+  const [mode, setMode] = useState<"live" | "snapshot">("snapshot");
+  const [reconnect, setReconnect] = useState(0);
 
   useEffect(() => {
     // SSE (push-only) with baked fallback — backend absent never breaks it
+    const apply = (raw: unknown) => {
+      // {items, mode} from the live backend; a bare array = baked file
+      if (Array.isArray(raw)) {
+        setItems(raw as NewsItem[]);
+        setMode("snapshot");
+      } else {
+        const p = raw as { items: NewsItem[]; mode?: string };
+        setItems(p.items ?? []);
+        setMode(p.mode === "live" ? "live" : "snapshot");
+      }
+    };
     const fallback = () =>
       fetch("/news.json")
         .then((r) => r.json())
-        .then(setItems)
+        .then(apply)
         .catch(() => setItems([]));
 
     const es = new EventSource(SSE_URL);
-    es.onmessage = (e) => setItems(JSON.parse(e.data));
+    es.onmessage = (e) => apply(JSON.parse(e.data));
     es.onerror = () => {
       es.close();
       fallback();
     };
-    // auto-refresh every minute (SSE pushes overwrite when they land)
-    const t = setInterval(() => setItems((cur) => rotateBaked(cur)), 60_000);
-    return () => {
-      es.close();
-      clearInterval(t);
-    };
-  }, []);
+    return () => es.close();
+  }, [reconnect]);
 
   return (
     <aside
@@ -70,13 +69,35 @@ export default function NewsRail() {
           </span>{" "}
           Signals
         </h2>
-        <button
-          onClick={() => setItems((cur) => rotateBaked(cur))}
-          title="Fetch the latest signals"
-          className="material-symbols-outlined text-[16px] text-ink-3 transition-colors hover:text-ink"
-        >
-          refresh
-        </button>
+        <span className="flex items-center gap-2">
+          <span
+            className={`caption flex items-center gap-1 rounded-full border px-2 py-0.5 ${
+              mode === "live"
+                ? "border-good/40 bg-good/10 text-good-text"
+                : "border-hairline text-ink-3"
+            }`}
+            title={
+              mode === "live"
+                ? "fetched from GDELT and tagged by GLM"
+                : "curated snapshot — the live feed is unavailable (GDELT throttles by IP); dates are the real ones"
+            }
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                mode === "live" ? "pulse-dot bg-good" : "bg-ink-3"
+              }`}
+            />
+            {mode === "live" ? "live" : "snapshot"}
+          </span>
+          <button
+            onClick={() => setReconnect((n) => n + 1)}
+            title="Re-fetch the signals feed"
+            aria-label="Refresh signals"
+            className="material-symbols-outlined text-[16px] text-ink-3 transition-colors hover:text-ink"
+          >
+            refresh
+          </button>
+        </span>
       </div>
       <ul className="flex flex-col gap-2">
         {items.map((n) => (

@@ -328,6 +328,59 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
           "icon-allow-overlap": true,
         },
       });
+
+      // cascade walkthrough: gold focus rings on the stage the KG carousel
+      // is showing (gold = navigation/interactive, never a status colour)
+      map.addSource("cascade-focus", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "cascade-focus-glow",
+        type: "circle",
+        source: "cascade-focus",
+        paint: {
+          "circle-radius": 22,
+          "circle-color": "#fbb040",
+          "circle-opacity": 0.18,
+          "circle-blur": 0.8,
+        },
+      });
+      map.addLayer({
+        id: "cascade-focus-ring",
+        type: "circle",
+        source: "cascade-focus",
+        paint: {
+          "circle-radius": 9,
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-color": "#fbb040",
+          "circle-stroke-width": 2.5,
+        },
+      });
+      // floating name tag ABOVE each ring. Collision-aware on purpose: a
+      // stage can hold five ports/refineries (Sikka and Vadinar are ~15 km
+      // apart), so overlapping tags drop out instead of piling up — the
+      // carousel lists every name anyway.
+      map.addLayer({
+        id: "cascade-focus-label",
+        type: "symbol",
+        source: "cascade-focus",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Bold"],
+          "text-size": 12,
+          "text-anchor": "bottom",
+          "text-offset": [0, -1.4],
+          "text-allow-overlap": false,
+          "text-optional": true,
+          "text-padding": 6,
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "#0a0e17",
+          "text-halo-width": 2,
+        },
+      });
     });
 
     map.on("click", "ships", (e) => {
@@ -411,6 +464,60 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
     if (!map || !map.getLayer("ships-highlight")) return;
     map.setFilter("ships-highlight", ["==", ["get", "mmsi"], highlightMmsi ?? -1]);
   }, [highlightMmsi]);
+
+  // cascade walkthrough: highlight this stage's places and frame them —
+  // one place = zoom in on it; several = fit them all; none (Product /
+  // Sector are nationwide) = frame India
+  const cascadeFocus = useStore((s) => s.cascadeFocus);
+  useEffect(() => {
+    const map = mapRef.current;
+    const src = map?.getSource("cascade-focus") as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (!map || !src) return;
+    const pts = cascadeFocus?.points ?? [];
+    src.setData({
+      type: "FeatureCollection",
+      features: pts.map((p) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: p.lonlat },
+        properties: { name: p.name },
+      })),
+    });
+    // the stage is the subject: fade the 1,589-plant carpet and the fleet
+    // back so the highlighted places actually read on a busy map
+    const focusing = !!cascadeFocus && pts.length > 0;
+    for (const [id, dim, full] of [
+      ["plants", 0.18, 0.85],
+      ["ships", 0.25, 1],
+      ["israel-plants", 0.18, 0.85],
+      ["egypt-plants", 0.18, 0.85],
+    ] as const) {
+      if (!map.getLayer(id)) continue;
+      const prop = id === "ships" ? "icon-opacity" : "circle-opacity";
+      map.setPaintProperty(id, prop, focusing ? dim : full);
+    }
+
+    if (!cascadeFocus) return;
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 0
+      : 1400;
+    if (pts.length === 1) {
+      map.flyTo({ center: pts[0].lonlat, zoom: 6, duration });
+    } else if (pts.length > 1) {
+      const lons = pts.map((p) => p.lonlat[0]);
+      const lats = pts.map((p) => p.lonlat[1]);
+      map.fitBounds(
+        [
+          [Math.min(...lons) - 3, Math.min(...lats) - 3],
+          [Math.max(...lons) + 3, Math.max(...lats) + 3],
+        ],
+        { duration, maxZoom: 5.5 },
+      );
+    } else {
+      map.flyTo({ center: [79, 22], zoom: 3.6, duration }); // all of India
+    }
+  }, [cascadeFocus]);
 
   const contextLayers = useStore((s) => s.contextLayers);
   useEffect(() => {

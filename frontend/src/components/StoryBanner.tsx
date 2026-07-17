@@ -3,7 +3,6 @@ import { useTween } from "../lib/tween";
 import { useStore } from "../store";
 import { BASE } from "../lib/cascade";
 import { simulate } from "../lib/simulate";
-import Why from "./Why";
 
 /** M7 story layer: the headline result in plain language, always derived
  *  from the same day-stepped engine the panels use. */
@@ -54,16 +53,6 @@ export default function StoryBanner() {
             at the pump,{" "}
             <span className="text-critical-text">{gdpT.toFixed(1)} pp</span>{" "}
             {plainMode ? "off India's growth" : "GDP drag"} over 90 days
-            <Why
-              tag="derived"
-              formula="pump: Δcrude × pass-through × policy damping + scarcity; GDP: −Δcrude/10 × RBI coeff − run-loss × activity channel (90-day mean from the day-stepped engine)"
-              sources={[
-                "pass_through_inr_per_usd_bbl",
-                "policy_pass_through",
-                "gdp_pp_per_10usd",
-                "price_elasticity_pct_per_pct",
-              ]}
-            />
           </>
         )}
       </p>

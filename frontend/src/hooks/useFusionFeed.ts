@@ -13,7 +13,7 @@ export function useFusionFeed() {
     const es = new EventSource(SSE_URL);
     es.onmessage = (e) => {
       const d = JSON.parse(e.data);
-      setFused(d.pi_fused, d.confidence);
+      setFused(d.pi_fused, d.confidence, d.driver ?? null);
     };
     es.onerror = () => es.close();
     return () => es.close();

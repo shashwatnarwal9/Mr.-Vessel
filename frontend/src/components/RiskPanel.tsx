@@ -13,19 +13,11 @@ import {
 } from "../lib/routeGraph";
 import { mapHandle } from "../lib/mapHandle";
 import { useStore, type ShipFeature } from "../store";
-import Why from "./Why";
 
 // status ramp (matches the map corridor coloring; no yellow — never
 // collides with brand gold)
 const riskColor = (p: number) =>
   p >= 0.35 ? "#d03b3b" : p >= 0.15 ? "#e8871e" : "#0ca30c";
-
-const SIGNAL_SOURCE: Record<string, string> = {
-  news: "GDELT/GLM-tagged headlines near the corridor (live in Tier 2; baked snapshot otherwise)",
-  ais: "transit-count deviation + reroute behaviour (baked snapshot)",
-  sanctions: "red-vessel density on this corridor (OpenSanctions screen)",
-  market: "Brent structure + freight premium proxy (yfinance / snapshot)",
-};
 
 const CORRIDOR_BLOCK: Record<string, Chokepoint[]> = {
   hormuz: ["hormuz"],
@@ -184,11 +176,6 @@ export default function RiskPanel() {
       >
         <span className="label-caps flex items-center gap-1 text-ink">
           Corridor Risk
-          <Why
-            tag="derived"
-            formula="P = sigmoid(logit(base rate) + Σ weight × signal). Sanctions signal is DERIVED live from red-vessel density when the fleet is screened; other signals are the dated snapshot until Tier-2 live wiring."
-            sources={[]}
-          />
         </span>
         <span className="flex items-center gap-2">
           <span className="micro-mono text-ink-3">next 30 days</span>
@@ -226,17 +213,6 @@ export default function RiskPanel() {
                         style={{ background: riskColor(r.p) }}
                       />
                       {r.corridor.name}
-                      <Why
-                        formula={`inputs → ${r.contributions
-                          .map(
-                            (c) =>
-                              `${c.signal} ${c.value.toFixed(2)}${(c as { live?: boolean }).live ? " (live fleet)" : " (snapshot)"}`,
-                          )
-                          .join(" · ")} · prior ${r.corridor.p0} (${r.corridor.p0_basis}). ${Object.entries(SIGNAL_SOURCE)
-                          .map(([k, v]) => `${k}: ${v}`)
-                          .join(" | ")}`}
-                        sources={[]}
-                      />
                     </span>
                     <span
                       className="data-lg shrink-0"

@@ -22,6 +22,18 @@ export const NODES: Record<string, [number, number]> = {
   CAPE_COMORIN: [77.1, 7.4], // south of Kanyakumari
   DONDRA_HEAD: [80.6, 5.4], // south of Sri Lanka
   SL_EAST: [83.0, 7.0], // east of Sri Lanka, into the Bay of Bengal
+  // rounding AFRICA: the Cape reroute sails around the continent, it does
+  // not cut through it (a straight Cape→Arabian Sea leg crossed Mozambique)
+  AGULHAS: [27.0, -35.5], // south of South Africa
+  MOZ_S: [47.0, -28.0], // south of Madagascar
+  MADAGASCAR_E: [53.0, -18.0], // east of Madagascar
+  SOMALIA_E: [54.0, 0.0], // Indian Ocean, east of the Horn
+  ATL_SW: [8.0, -22.0], // Atlantic off Namibia (west-coast leg)
+  // the TURKISH STRAITS: Black Sea → Med runs through the Bosphorus and
+  // Dardanelles, not overland across Anatolia
+  BOSPHORUS: [29.0, 41.0],
+  DARDANELLES: [26.2, 40.2],
+  AEGEAN_S: [25.0, 34.5], // south of Crete
   // load ports
   RAS_TANURA: [50.16, 26.64],
   BASRA: [48.2, 29.7],
@@ -55,9 +67,14 @@ const EDGES: [string, string][] = [
   ["ARABIAN_SEA", "BAB"],
   ["BAB", "SUEZ"],
   ["SUEZ", "MED_EAST"], ["MED_EAST", "GIB"],
-  ["NOVOROSSIYSK", "MED_EAST"],
+  // Black Sea → Med via the straits (never across Anatolia)
+  ["NOVOROSSIYSK", "BOSPHORUS"], ["BOSPHORUS", "DARDANELLES"],
+  ["DARDANELLES", "AEGEAN_S"], ["AEGEAN_S", "MED_EAST"],
   ["GIB", "MIDATL"], ["MIDATL", "CAPE"], ["MIDATL", "HOUSTON"],
-  ["CAPE", "ARABIAN_SEA"], ["CAPE", "BONNY"], ["BONNY", "MIDATL"],
+  // around Africa, not through it
+  ["CAPE", "AGULHAS"], ["AGULHAS", "MOZ_S"], ["MOZ_S", "MADAGASCAR_E"],
+  ["MADAGASCAR_E", "SOMALIA_E"], ["SOMALIA_E", "ARABIAN_SEA"],
+  ["CAPE", "ATL_SW"], ["ATL_SW", "BONNY"], ["BONNY", "MIDATL"],
   ["GIB", "HOUSTON"],
 ];
 
@@ -115,8 +132,15 @@ export function seaRoute(
   return { nodes, path: nodes.map((n) => NODES[n]), nm: dist[to] };
 }
 
-/** Snap an off-graph position (a live ship) onto the network via a
- *  temporary node joined to its two nearest waypoints. */
+/** Snap an off-graph position (a live ship) onto the network at its nearest
+ *  usable waypoint, then sail.
+ *
+ *  The entry waypoint is chosen on the OPEN network and then reused for the
+ *  blocked run. Picking it per-scenario let a vessel "teleport" across the
+ *  closure it was supposed to be trapped behind: a tanker sitting in the
+ *  Gulf of Suez would lose the SUEZ node, re-enter at MED_EAST on the far
+ *  side of the shut canal, and cheerfully sail around Africa. A ship that
+ *  cannot reach open water now returns null — stranded, which IS the result. */
 export function routeFromPosition(
   lonlat: [number, number],
   to: string,
@@ -126,17 +150,38 @@ export function routeFromPosition(
     .map(([id, c]) => ({ id, nm: haversineNm(lonlat, c) }))
     .sort((a, b) => a.nm - b.nm)
     .slice(0, 2);
-  let best: RouteResult | null = null;
+
+  // where geography says this ship joins the network (blockage-independent)
+  let entry: { id: string; nm: number } | null = null;
+  let bestOpenNm = Infinity;
   for (const n of nearest) {
-    const r = seaRoute(n.id, to, blocked);
-    if (!r) continue;
-    const total = r.nm + n.nm;
-    if (!best || total < best.nm) {
-      best = { nodes: [n.id, ...r.nodes.slice(1)], path: [lonlat, ...r.path], nm: total };
+    const open = seaRoute(n.id, to);
+    if (open && open.nm + n.nm < bestOpenNm) {
+      bestOpenNm = open.nm + n.nm;
+      entry = n;
     }
   }
-  return best;
+  if (!entry) return null;
+
+  const r = seaRoute(entry.id, to, blocked);
+  if (!r) return null; // the closure traps it — no honest sea route
+  return { nodes: r.nodes, path: [lonlat, ...r.path], nm: r.nm + entry.nm };
 }
+
+/** Great-circle distance from a position to the closest waypoint. */
+export function nearestNodeNm(lonlat: [number, number]): number {
+  return Math.min(
+    ...Object.values(NODES).map((c) => haversineNm(lonlat, c)),
+  );
+}
+
+/** A ship is only routable if it sits near a modelled waypoint: the snap
+ *  leg is drawn as a straight line, so a vessel far from every lane (the
+ *  Baltic, the Pacific, a river berth) could only be joined to the network
+ *  by cutting across land. Those are excluded rather than routed wrongly. */
+export const SNAP_LIMIT_NM = 800;
+export const isRoutable = (lonlat: [number, number]) =>
+  nearestNodeNm(lonlat) <= SNAP_LIMIT_NM;
 
 export const addedDays = (normalNm: number, altNm: number, sogKn: number) =>
   Math.max(0, (altNm - normalNm) / (Math.max(4, sogKn) * 24));

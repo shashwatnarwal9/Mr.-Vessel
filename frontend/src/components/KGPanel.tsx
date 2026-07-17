@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { ALERT_PI_THRESHOLD } from "../lib/zones";
+import { cascadePoints } from "../lib/cascadeGeo";
 
 type KGNode = { id: string; name: string; layer: string };
 type KG = { nodes: KGNode[]; links: unknown[]; mode: "live" | "baked" };
@@ -25,15 +26,16 @@ const CHOKEPOINT: Record<string, string | null> = {
   opec: null,
 };
 
-/** Cascade carousel: the Supplier → … → Sector chain one stage at a time
- *  (auto-advances gently; arrows for manual control). */
+/** Cascade carousel: the Supplier → … → Sector chain one stage at a time.
+ *  Stepping it walks the MAP too — each stage highlights and frames the
+ *  real places it names (GlobeMap reads store.cascadeFocus). */
 export default function KGPanel() {
   const pi = useStore((s) => s.pi);
   const scenario = useStore((s) => s.activeScenario);
+  const setCascadeFocus = useStore((s) => s.setCascadeFocus);
   const chokepoint = CHOKEPOINT[scenario];
   const [kg, setKg] = useState<KG | null>(null);
   const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     setKg(null); // scenario changed → drop the stale cascade before refetching
@@ -58,25 +60,38 @@ export default function KGPanel() {
     items: (kg?.nodes ?? []).filter((n) => n.layer === layer),
   })).filter((s) => s.items.length > 0);
   const n = stages.length;
-
-  // gentle auto-advance (pauses on hover; off under reduced motion)
-  useEffect(() => {
-    if (n === 0 || paused) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % n), 4000);
-    return () => clearInterval(t);
-  }, [n, paused]);
-
-  if (pi < ALERT_PI_THRESHOLD || !chokepoint || !kg || n === 0) return null;
-
-  const i = Math.min(idx, n - 1);
+  const i = Math.min(idx, Math.max(0, n - 1));
   const stage = stages[i];
+
+  // walk the map with the carousel: resolve this stage's places and hand
+  // them to GlobeMap (which highlights + frames them)
+  useEffect(() => {
+    if (!stage) {
+      setCascadeFocus(null);
+      return;
+    }
+    let alive = true;
+    cascadePoints(
+      stage.layer,
+      stage.items.map((x) => x.name),
+    )
+      .then((points) => alive && setCascadeFocus({ layer: stage.layer, points }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [stage?.layer, kg, setCascadeFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // leaving the cascade (σ drops, scenario change, tab switch) clears the map
+  useEffect(() => () => setCascadeFocus(null), [setCascadeFocus]);
+
+  if (pi < ALERT_PI_THRESHOLD || !chokepoint || !kg || n === 0 || !stage)
+    return null;
+
   const hit = stage.layer === "Chokepoint";
 
   return (
     <aside
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
       aria-label="Supply-chain cascade, one stage at a time"
       className="absolute bottom-4 left-1/2 z-10 flex w-[30rem] max-w-[calc(100vw-42rem)] -translate-x-1/2 items-center gap-3 rounded-lg border border-hairline bg-panel/90 p-2 shadow-2xl backdrop-blur-md"
     >
