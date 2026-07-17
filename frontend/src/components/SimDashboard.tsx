@@ -285,15 +285,17 @@ export default function SimDashboard() {
     workerRef.current = w;
   };
 
-  // manual run (v7): shock panel × import-mix panel, COUPLED
-  const run = () => {
+  // manual run (v7): shock panel × import-mix panel, COUPLED.
+  // mixOverride lets "apply mitigation" re-run with the new mix at once
+  // (setMix is async — state wouldn't be fresh yet).
+  const run = (mixOverride?: Mix) => {
     const disruptions = { hormuz: pi, redsea: draft.redsea, opec: draft.opec };
     if (suppliers.length === 0) {
       // mix data unavailable → legacy σ-share path still works
       execute(disruptions, aggregateShortfall(draft.ships), [...draft.ships]);
       return;
     }
-    const norm = normalizeMix(mix);
+    const norm = normalizeMix(mixOverride ?? mix);
     if (norm.corrected) {
       setMix(norm.mix);
       setMixCorrected(true);
@@ -342,7 +344,7 @@ export default function SimDashboard() {
                 height={h}
               />
             ) : (
-              <div className="h-full w-full animate-pulse rounded bg-white/5" />
+              <div className="flex h-full w-full animate-pulse items-center justify-center rounded bg-white/5"><span className="caption text-ink-3">running 10,000 futures…</span></div>
             ),
         },
         {
@@ -362,7 +364,7 @@ export default function SimDashboard() {
                 height={h}
               />
             ) : (
-              <div className="h-full w-full animate-pulse rounded bg-white/5" />
+              <div className="flex h-full w-full animate-pulse items-center justify-center rounded bg-white/5"><span className="caption text-ink-3">running 10,000 futures…</span></div>
             ),
         },
         {
@@ -646,6 +648,7 @@ export default function SimDashboard() {
                       setMix(m.newMix);
                       setMixCorrected(false);
                       setOpenDeck(null);
+                      run(m.newMix); // auto re-run with the applied mix
                     }}
                     className="label-caps mt-auto w-full rounded border border-[#199e70]/50 py-2 text-[#199e70] transition-colors hover:bg-[#199e70]/10"
                   >
@@ -937,7 +940,7 @@ export default function SimDashboard() {
           </section>
           <div className="flex h-full flex-col justify-end lg:col-span-4">
             <button
-              onClick={run}
+              onClick={() => run()}
               disabled={running}
               className="headline-sm flex h-16 w-full items-center justify-center gap-2 rounded-lg bg-secondary text-navy shadow-[0_0_15px_rgba(255,185,86,0.3)] transition-all hover:bg-gold-hover focus:ring-2 focus:ring-secondary focus:ring-offset-2 focus:ring-offset-dim disabled:opacity-50"
             >

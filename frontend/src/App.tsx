@@ -5,6 +5,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useStore, type Tab } from "./store";
 import Hero from "./components/Hero";
+import CommandPalette from "./components/CommandPalette";
 import SearchBar from "./components/SearchBar";
 import PresetMenu from "./components/PresetMenu";
 
@@ -21,6 +22,12 @@ const HASH_TO_TAB = Object.fromEntries(TABS.map((t) => [t.hash, t.tab]));
 
 export default function App() {
   const tab = useStore((s) => s.tab);
+  // a11y: high-contrast mode (persisted; brightens secondary inks)
+  const [hc, setHc] = useState(() => localStorage.getItem("mrvessel.hc") === "1");
+  useEffect(() => {
+    document.documentElement.classList.toggle("hc", hc);
+    localStorage.setItem("mrvessel.hc", hc ? "1" : "0");
+  }, [hc]);
   const setTab = useStore((s) => s.setTab);
   const shipsMode = useStore((s) => s.shipsMode);
   // armed = heavy bundle mounted; inCommand = instrument replaces the hero
@@ -114,9 +121,21 @@ export default function App() {
         </div>
         <div className="flex items-center gap-4">
           {inCommand && <SearchBar />}
+          <button
+            onClick={() => setHc((v) => !v)}
+            aria-pressed={hc}
+            title="High-contrast mode"
+            aria-label="Toggle high-contrast mode"
+            className={`material-symbols-outlined rounded border border-hairline p-1 text-[18px] transition-colors ${hc ? "text-secondary" : "text-ink-3 hover:text-ink"}`}
+          >
+            contrast
+          </button>
           <PresetMenu />
         </div>
       </nav>
+
+      {/* ⌘K / Ctrl-K: keyboard-driven terminal navigation */}
+      <CommandPalette enterCommand={enterCommand} />
 
       {inCommand ? (
         /* state 2: the instrument — owns the whole viewport, no hero above */

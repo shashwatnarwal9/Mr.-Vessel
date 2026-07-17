@@ -240,3 +240,18 @@ input[type="range"]:disabled::-webkit-slider-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.24);
 }
+
+/* ---- M-COHESION a11y modes ---- */
+/* high-contrast: brighten secondary inks + hairlines (toggle in nav) */
+html.hc {
+  --color-ink-2: #e4e9f8;
+  --color-ink-3: #b6c0dc;
+  --color-hairline: rgba(255, 255, 255, 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .pulse-dot,
+  .animate-bounce {
+    animation: none;
+  }
+}

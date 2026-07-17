@@ -19,8 +19,9 @@ export default function CardDeck({
 }) {
   const [cur, setCur] = useState(0);
   const n = cards.length;
-  const next = () => setCur((c) => (c + 1) % n);
-  const prev = () => setCur((c) => (c - 1 + n) % n);
+  // advancing past the LAST card closes the deck (back to the view)
+  const next = () => (cur >= n - 1 ? onClose() : setCur((c) => c + 1));
+  const prev = () => setCur((c) => Math.max(0, c - 1));
   const dialogRef = useRef<HTMLDivElement>(null);
   const touchX = useRef<number | null>(null);
   const reduced =
@@ -150,7 +151,11 @@ export default function CardDeck({
           >
             chevron_left
           </button>
-          <span className="caption text-ink-3">click card, swipe, or ←/→</span>
+          <span className="caption text-ink-3">
+            {cur >= n - 1
+              ? "next closes the deck"
+              : "click card, swipe, or ←/→"}
+          </span>
           <button
             onClick={next}
             aria-label="Next card"

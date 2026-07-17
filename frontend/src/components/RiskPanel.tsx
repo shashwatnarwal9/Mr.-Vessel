@@ -248,7 +248,13 @@ export default function RiskPanel() {
                       </span>
                     </span>
                   </span>
-                  <span className="micro-mono block pl-5 text-ink-2">
+                  <span
+                    className={`micro-mono pl-5 text-ink-2 ${
+                      selectedCorridor === r.corridor.id
+                        ? "block"
+                        : "hidden group-hover:block"
+                    }`}
+                  >
                     driven by {topDriver(r)} · click for transiting ships
                   </span>
                 </button>

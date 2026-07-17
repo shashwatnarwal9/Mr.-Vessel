@@ -1,38 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { mapHandle } from "../lib/mapHandle";
+import { gotoPlant, gotoShip, loadPlants } from "../lib/navigate";
 import { useStore, type PlantProps, type ShipProps } from "../store";
 
 type Hit =
   | { kind: "ship"; label: string; sub: string; lonlat: [number, number]; ship: ShipProps }
   | { kind: "plant"; label: string; sub: string; lonlat: [number, number]; plant: PlantProps };
-
-type PlantFeature = {
-  geometry: { coordinates: [number, number] };
-  properties: PlantProps;
-};
-
-// module-level plant cache: all three countries, fetched once
-let PLANTS: PlantFeature[] | null = null;
-async function loadPlants(): Promise<PlantFeature[]> {
-  if (PLANTS) return PLANTS;
-  const files = [
-    "/india_powerplants.geojson",
-    "/israel_powerplants.geojson",
-    "/egypt_powerplants.geojson",
-  ];
-  const all = await Promise.all(
-    files.map((f) =>
-      fetch(f)
-        .then((r) => r.json())
-        .then((fc) => fc.features as PlantFeature[])
-        .catch(() => []),
-    ),
-  );
-  PLANTS = all.flat();
-  return PLANTS;
-}
-
-let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
 export default function SearchBar() {
   const [q, setQ] = useState("");
@@ -89,22 +61,8 @@ export default function SearchBar() {
   const select = (h: Hit) => {
     setOpen(false);
     setQ("");
-    const st = useStore.getState();
-    st.setTab("Command Map");
-    if (h.kind === "ship") {
-      st.setSelectedShip({ ...h.ship, lon: h.lonlat[0], lat: h.lonlat[1] });
-      // flash the found ship green for 5s, then back to its normal blue
-      st.setHighlightMmsi(h.ship.mmsi);
-      if (flashTimer) clearTimeout(flashTimer);
-      flashTimer = setTimeout(
-        () => useStore.getState().setHighlightMmsi(null),
-        5000,
-      );
-    } else {
-      st.setSelectedPlant(h.plant);
-    }
-    // highlight = zoom-close flyTo; selected panel opens alongside
-    mapHandle.current?.flyTo({ center: h.lonlat, zoom: 8, duration: 1800 });
+    if (h.kind === "ship") gotoShip(h.ship, h.lonlat);
+    else gotoPlant(h.plant, h.lonlat);
   };
 
   return (

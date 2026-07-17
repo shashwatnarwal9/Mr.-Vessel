@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTweenArray } from "../lib/tween";
 
 // dataviz tokens
 const INK_MUTED = "#8792b8";
@@ -24,13 +25,19 @@ export default function TrajChart({
   height = 200,
 }: Props) {
   const [hover, setHover] = useState<number | null>(null);
+  // M-COHESION: lines MORPH between states (flatten → tween → slice back)
+  const flatT = useTweenArray(series.flatMap((s) => s.values));
   const PAD = { l: 44, r: 70, t: 10, b: 20 };
   const iw = width - PAD.l - PAD.r;
   const ih = height - PAD.t - PAD.b;
   const n = series[0]?.values.length ?? 0;
   if (n === 0) return null;
 
-  const all = series.flatMap((s) => s.values);
+  const tSeries = series.map((s, si) => ({
+    ...s,
+    values: flatT.slice(si * n, (si + 1) * n),
+  }));
+  const all = tSeries.flatMap((s) => s.values);
   const lo = Math.min(...all);
   const hi = Math.max(...all);
   const span = hi - lo || 1;
@@ -62,7 +69,7 @@ export default function TrajChart({
             </text>
           </g>
         ))}
-        {series.map((s) => (
+        {tSeries.map((s) => (
           <g key={s.name}>
             <polyline
               points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
@@ -91,9 +98,9 @@ export default function TrajChart({
             <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={PAD.t + ih} stroke={INK_MUTED} />
             <text x={x(hover) < width / 2 ? x(hover) + 6 : x(hover) - 6} y={PAD.t + 10} fontSize={12} fill="#ffffff" textAnchor={x(hover) < width / 2 ? "start" : "end"}>
               d {hover}:{" "}
-              {series.map((s) => `${s.name} ${format(s.values[hover])}`).join(" · ")}
+              {tSeries.map((s) => `${s.name} ${format(s.values[hover])}`).join(" · ")}
             </text>
-            {series.map((s) => (
+            {tSeries.map((s) => (
               <circle key={s.name} cx={x(hover)} cy={y(s.values[hover])} r={3} fill={s.color} stroke="#0a0e17" strokeWidth={1.5} />
             ))}
           </g>

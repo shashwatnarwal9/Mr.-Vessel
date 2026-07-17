@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Band } from "../lib/montecarlo";
+import { useTweenArray } from "../lib/tween";
 
 // palette.md dark-mode chrome tokens
 const INK_MUTED = "#8792b8";
@@ -25,6 +26,20 @@ export default function FanChart({
   unit = "d",
 }: Props) {
   const [hover, setHover] = useState<number | null>(null);
+  // M-COHESION: bands morph on data change; on first paint they UNFOLD
+  // from the median outward — the Monte Carlo result visibly builds
+  const flatT = useTweenArray(
+    bands.flatMap((b) => [b.p5, b.p25, b.p50, b.p75, b.p95]),
+    600,
+    bands.flatMap((b) => [b.p50, b.p50, b.p50, b.p50, b.p50]),
+  );
+  const tb: Band[] = bands.map((_, i) => ({
+    p5: flatT[i * 5],
+    p25: flatT[i * 5 + 1],
+    p50: flatT[i * 5 + 2],
+    p75: flatT[i * 5 + 3],
+    p95: flatT[i * 5 + 4],
+  }));
   const PAD = { l: 6, r: 56, t: 6, b: 16 };
   const iw = width - PAD.l - PAD.r;
   const ih = height - PAD.t - PAD.b;
@@ -38,16 +53,16 @@ export default function FanChart({
   // forward top edge, then reversed bottom edge
   const area = (loKey: keyof Band, hiKey: keyof Band) =>
     [
-      ...bands.map((b, i) => `${x(i)},${y(b[hiKey])}`),
-      ...bands.map((_, i) => {
-        const j = bands.length - 1 - i;
-        return `${x(j)},${y(bands[j][loKey])}`;
+      ...tb.map((b, i) => `${x(i)},${y(b[hiKey])}`),
+      ...tb.map((_, i) => {
+        const j = tb.length - 1 - i;
+        return `${x(j)},${y(tb[j][loKey])}`;
       }),
     ].join(" ");
 
-  const median = bands.map((b, i) => `${x(i)},${y(b.p50)}`).join(" ");
-  const last = bands[bands.length - 1];
-  const h = hover === null ? null : bands[hover];
+  const median = tb.map((b, i) => `${x(i)},${y(b.p50)}`).join(" ");
+  const last = tb[tb.length - 1];
+  const h = hover === null ? null : tb[hover];
 
   return (
     <figure className="m-0">

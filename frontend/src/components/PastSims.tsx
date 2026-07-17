@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTween } from "../lib/tween";
 import { useStore } from "../store";
 import { deleteRun, listRuns, type SavedRun } from "../lib/pastSims";
 import TrajChart, { type TrajSeries } from "./TrajChart";
@@ -27,6 +28,18 @@ export default function PastSims() {
 
   const open = runs.find((r) => r.id === openId) ?? null;
   const compared = runs.filter((r) => compare.includes(r.id));
+
+  // M-COHESION delta diffing: compare = animated, labeled Δs (B vs A)
+  const gdpMeanOf = (r: SavedRun) =>
+    r.traj.gdp.reduce((a, b) => a + b, 0) / r.traj.gdp.length;
+  const dPump = useTween(
+    compared.length === 2
+      ? compared[1].traj.fuel[89] - compared[0].traj.fuel[89]
+      : 0,
+  );
+  const dGdp = useTween(
+    compared.length === 2 ? gdpMeanOf(compared[1]) - gdpMeanOf(compared[0]) : 0,
+  );
 
   const reload = (r: SavedRun) => {
     const st = useStore.getState();
@@ -203,6 +216,21 @@ export default function PastSims() {
                   <h4 className="label-caps mb-2 border-b border-hairline pb-1 text-secondary">
                     Compare: {compared[0].name} vs {compared[1].name}
                   </h4>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`micro-mono rounded px-2 py-1 ${dPump > 0.05 ? "bg-critical/20 text-critical-text" : dPump < -0.05 ? "bg-good/20 text-good-text" : "bg-bright text-ink-2"}`}
+                    >
+                      petrol Δ {dPump > 0 ? "+" : ""}₹{dPump.toFixed(1)}/L
+                    </span>
+                    <span
+                      className={`micro-mono rounded px-2 py-1 ${dGdp < -0.05 ? "bg-critical/20 text-critical-text" : dGdp > 0.05 ? "bg-good/20 text-good-text" : "bg-bright text-ink-2"}`}
+                    >
+                      growth Δ {dGdp > 0 ? "+" : ""}{dGdp.toFixed(2)} pp
+                    </span>
+                    <span className="caption text-ink-3">
+                      {compared[1].name} vs {compared[0].name}
+                    </span>
+                  </div>
                   <div className="rounded border border-hairline bg-dim p-2">
                     <TrajChart
                       title="Petrol price (₹/L)"

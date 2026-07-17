@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTween } from "../lib/tween";
 import { useStore } from "../store";
 import { BASE } from "../lib/cascade";
 import { simulate } from "../lib/simulate";
@@ -26,6 +27,8 @@ export default function StoryBanner() {
       gdp: t.gdp.reduce((a, b) => a + b, 0) / t.gdp.length,
     };
   }, [sigma, scenario]);
+  const pumpT = useTween(pump);
+  const gdpT = useTween(gdp);
 
   return (
     <div className="absolute left-1/2 top-3 z-10 flex w-[48rem] -translate-x-1/2 items-center gap-4 rounded-lg border border-hairline bg-navy-raised px-6 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.5)] backdrop-blur-md">
@@ -47,9 +50,9 @@ export default function StoryBanner() {
             <span className="font-bold">
               A {Math.round(sigma * 100)}% {SCENARIO_PHRASE[scenario]}
             </span>{" "}
-            → <span className="text-critical-text">+₹{pump.toFixed(1)}/L</span>{" "}
+            → <span className="text-critical-text">+₹{pumpT.toFixed(1)}/L</span>{" "}
             at the pump,{" "}
-            <span className="text-critical-text">{gdp.toFixed(1)} pp</span>{" "}
+            <span className="text-critical-text">{gdpT.toFixed(1)} pp</span>{" "}
             {plainMode ? "off India's growth" : "GDP drag"} over 90 days
             <Why
               tag="derived"

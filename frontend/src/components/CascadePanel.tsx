@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTween } from "../lib/tween";
 import { useStore } from "../store";
 import { simulate } from "../lib/simulate";
 import Why from "./Why";
@@ -73,6 +74,11 @@ export default function CascadePanel() {
   const pumpSettled = t.fuel_price[89];
   const stressPeak = Math.max(...t.power_stress);
   const gdpMean = t.gdp.reduce((a, b) => a + b, 0) / t.gdp.length;
+  // M-COHESION: recomputed numbers TWEEN to their new value
+  const runMinT = useTween(runMin * 100);
+  const pumpT = useTween(pumpSettled);
+  const stressT = useTween(stressPeak * 100);
+  const gdpT = useTween(gdpMean);
 
   return (
     <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md">
@@ -125,7 +131,7 @@ export default function CascadePanel() {
       <div className="grid grid-cols-2 gap-2">
         <Stat
           label={plain ? "Refineries" : "Run rate (90d min)"}
-          value={`${(runMin * 100).toFixed(1)}%`}
+          value={`${runMinT.toFixed(1)}%`}
           tone={tone(1 - runMin)}
           why={
             <Why
@@ -136,7 +142,7 @@ export default function CascadePanel() {
         />
         <Stat
           label={plain ? "Petrol (Delhi)" : "Pump price (settled)"}
-          value={`₹${pumpSettled.toFixed(1)}/L`}
+          value={`₹${pumpT.toFixed(1)}/L`}
           tone={tone(pi)}
           why={
             <Why
@@ -147,7 +153,7 @@ export default function CascadePanel() {
         />
         <Stat
           label={plain ? "Elec. at risk" : "Power stress (peak)"}
-          value={`${(stressPeak * 100).toFixed(1)}%`}
+          value={`${stressT.toFixed(1)}%`}
           tone={tone(stressPeak * 4)}
           why={
             <Why
@@ -158,7 +164,7 @@ export default function CascadePanel() {
         />
         <Stat
           label={plain ? "Growth hit" : "GDP drag (90d mean)"}
-          value={`${gdpMean.toFixed(2)} pp`}
+          value={`${gdpT.toFixed(2)} pp`}
           tone={tone(-gdpMean / 2)}
           why={
             <Why
