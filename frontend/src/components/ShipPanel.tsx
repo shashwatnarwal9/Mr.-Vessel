@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store";
 import { etaDays, rerouteDelta } from "../lib/reroute";
 import { classifyShip, estimateCargoBbl } from "../lib/ships";
@@ -12,15 +12,15 @@ import { ALERT_PI_THRESHOLD, HORMUZ_ZONE, inZone } from "../lib/zones";
 
 const CLASS_STYLE: Record<string, string> = {
   inbound: "bg-cyan-500/20 text-cyan-200",
-  outbound: "bg-amber-500/20 text-amber-200",
+  outbound: "bg-violet-500/20 text-violet-200",
   transit: "bg-white/10 text-slate-300",
 };
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-3 py-1 text-sm">
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="text-right text-slate-100">{value}</dd>
+    <div className="flex flex-col">
+      <dt className="label-caps text-[9px] text-ink-3">{label}</dt>
+      <dd className="micro-mono text-ink">{value}</dd>
     </div>
   );
 }
@@ -34,6 +34,12 @@ export default function ShipPanel() {
   // hooks stay unconditional — the no-ship guard lives inside/below them
   const [screen, setScreen] = useState<ScreenResult | null>(null);
   const [meta, setMeta] = useState<SanctionsFile["meta"] | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  // the left column stacks panels — scroll the ship card into view on select
+  useEffect(() => {
+    if (ship)
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [ship?.mmsi]);
   useEffect(() => {
     if (!ship) return;
     let alive = true;
@@ -42,7 +48,13 @@ export default function ShipPanel() {
       .then(({ idx, meta }) => {
         if (!alive) return;
         setMeta(meta);
-        setScreen(screenVessel(idx, { mmsi: ship.mmsi, name: ship.name }));
+        setScreen(
+          screenVessel(idx, {
+            imo: ship.imo ? String(ship.imo) : undefined,
+            mmsi: ship.mmsi,
+            name: ship.name,
+          }),
+        );
       })
       .catch(() => {});
     return () => {
@@ -61,31 +73,54 @@ export default function ShipPanel() {
   const added = rerouted ? pi * rerouteDelta("hormuz").addedDays : 0;
 
   return (
-    <aside className="absolute bottom-4 left-4 z-10 w-72 rounded-xl border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <h2 className="text-sm font-semibold leading-snug text-white">
-          {ship.name}
+    <aside
+      ref={panelRef}
+      className="flex w-full shrink-0 flex-col gap-3 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col">
+          <h2 className="headline-sm font-bold leading-snug text-ink">
+            {ship.name}
+          </h2>
+          <span className="micro-mono text-ink-3">
+            MMSI {ship.mmsi} | {ship.type.toUpperCase()}
+          </span>
           <span
-            className={`ml-2 rounded px-1.5 py-0.5 align-middle text-[10px] font-normal ${
-              shipsMode === "live"
-                ? "bg-emerald-500/20 text-emerald-200"
-                : "bg-white/10 text-slate-400"
+            className={`micro-mono mt-1 ${
+              shipsMode === "live" ? "text-good-text" : "text-ink-3"
             }`}
           >
-            {shipsMode === "live" ? "live AIS" : "demo fleet — simulated position"}
+            {shipsMode === "live" ? "● live AIS" : "● demo fleet — simulated position"}
           </span>
-        </h2>
-        <button
-          onClick={() => setShip(null)}
-          aria-label="Close ship panel"
-          className="rounded px-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
-        >
-          ×
-        </button>
+        </div>
+        <div className="flex items-center gap-1">
+          {screen?.status === "match" && (
+            <span
+              className={`material-symbols-outlined text-[16px] ${
+                screen.vessel.tier === "sanctioned"
+                  ? "text-critical"
+                  : "text-ink-2"
+              }`}
+              title={
+                screen.vessel.tier === "sanctioned" ? "Sanctioned" : "Shadow fleet"
+              }
+            >
+              {screen.vessel.tier === "sanctioned"
+                ? "do_not_disturb_on"
+                : "blur_circular"}
+            </span>
+          )}
+          <button
+            onClick={() => setShip(null)}
+            aria-label="Close ship panel"
+            className="rounded px-1.5 text-ink-3 hover:text-ink"
+          >
+            ×
+          </button>
+        </div>
       </div>
-      <dl>
-        <Row label="MMSI" value={ship.mmsi} />
-        <Row label="Type" value={ship.type} />
+      <dl className="grid grid-cols-2 gap-2 border-b border-t border-hairline py-2">
+        {ship.imo && <Row label="IMO" value={ship.imo} />}
         <Row label="Course" value={`${ship.course}°`} />
         <Row label="Speed" value={`${ship.speed} kn`} />
         <Row label="Destination" value={ship.dest} />
@@ -108,7 +143,7 @@ export default function ShipPanel() {
             label="ETA"
             value={
               added > 0 ? (
-                <span className="text-amber-300">
+                <span className="text-elevated">
                   {(eta + added).toFixed(1)} d (+{added.toFixed(1)} reroute)
                 </span>
               ) : (
@@ -119,32 +154,32 @@ export default function ShipPanel() {
         )}
       </dl>
       {/* RA1: sanctions status from baked OpenSanctions data */}
-      <div className="mt-3 border-t border-white/10 pt-2">
-        <div className="mb-1 text-[11px] uppercase tracking-wider text-slate-400">
+      <div>
+        <div className="label-caps mb-1 text-[9px] text-ink-3">
           Sanctions status
         </div>
         {screen === null && (
-          <div className="text-xs text-slate-500">screening…</div>
+          <div className="micro-mono text-ink-3">screening…</div>
         )}
         {screen?.status === "match" && (
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap gap-1">
               <span
-                className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                className={`label-caps rounded px-1.5 py-0.5 ${
                   screen.vessel.tier === "sanctioned"
-                    ? "bg-red-500/25 text-red-200"
-                    : "bg-amber-500/25 text-amber-200"
+                    ? "bg-critical/25 text-critical-text"
+                    : "bg-elevated/25 text-elevated"
                 }`}
               >
                 {screen.vessel.tier === "sanctioned" ? "⛔ Sanctioned" : "🕳 Shadow fleet"}
               </span>
               {screen.focFlag && (
-                <span className="rounded bg-white/10 px-1.5 py-0.5 text-[11px] text-slate-300">
-                  🏴 flag of convenience ({screen.vessel.flag.toUpperCase()})
+                <span className="label-caps rounded border border-hairline bg-navy-deep px-1.5 py-0.5 text-ink-2">
+                  🏴 FoC ({screen.vessel.flag.toUpperCase()})
                 </span>
               )}
             </div>
-            <ul className="text-[11px] text-slate-300">
+            <ul className="micro-mono text-ink-2">
               {screen.labels.map((l) => (
                 <li key={l}>• {l}</li>
               ))}
@@ -153,20 +188,20 @@ export default function ShipPanel() {
               href={screen.vessel.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] text-cyan-300 underline decoration-cyan-300/40 hover:text-cyan-200"
+              className="micro-mono text-secondary underline decoration-secondary/40 hover:text-gold-hover"
             >
               source: OpenSanctions (matched on {screen.matchedOn.toUpperCase()})
             </a>
           </div>
         )}
         {screen?.status === "clean" && (
-          <div className="text-xs text-slate-400">
+          <div className="micro-mono text-ink-2">
             Not on sanctions watchlist (screened by{" "}
             {screen.screenedOn.join("/")})
           </div>
         )}
         {meta && (
-          <div className="mt-1 text-[10px] text-slate-500">
+          <div className="micro-mono mt-1 text-ink-3">
             vs {meta.baked.toLocaleString()} listed vessels · OpenSanctions ·{" "}
             {meta.as_of}
           </div>
@@ -175,9 +210,12 @@ export default function ShipPanel() {
       {classification !== "transit" && cargo > 0 && (
         <button
           onClick={() => startSimulationWith(ship)}
-          className="mt-3 w-full rounded-lg border border-cyan-400/30 bg-cyan-500/15 px-3 py-1.5 text-sm font-medium text-cyan-200 hover:bg-cyan-500/25"
+          className="label-caps flex w-full items-center justify-center gap-2 rounded bg-secondary py-2 font-bold text-navy transition-colors hover:bg-gold-hover"
         >
-          ▶ Start Simulation
+          <span className="material-symbols-outlined text-[16px]">
+            play_arrow
+          </span>{" "}
+          Start Simulation
         </button>
       )}
     </aside>

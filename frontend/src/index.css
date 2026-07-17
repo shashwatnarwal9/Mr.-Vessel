@@ -1,11 +1,214 @@
 @import "tailwindcss";
 
+/* Stitch "Vessel Intel Protocol" tokens — s0–s4 tailwind-config, verbatim */
+@theme {
+  --color-navy: #0d1440; /* primary-container: page bg */
+  --color-navy-deep: #0a1033; /* inputs, tiles, chips */
+  --color-navy-raised: #16205a; /* story banner */
+  --color-panel: #0a0e17; /* surface-container-lowest: cards + plot surfaces (LOCKED) */
+  --color-dim: #0f131c; /* surface-dim: dashboard page bg, chart wells */
+  --color-raised: #262a34; /* surface-container-high: hover/active segment */
+  --color-low: #181b25; /* surface-container-low: status pill */
+  --color-bright: #353943; /* surface-bright: low-risk chip */
+  --color-hairline: rgba(255, 255, 255, 0.12);
+  --color-gold: #fbb040; /* brand-gold: hero CTA */
+  --color-secondary: #ffb956; /* secondary: buttons, active nav, values */
+  --color-gold-hover: #ffc155;
+  --color-gold-wash: rgba(251, 176, 64, 0.12);
+  --color-ink: #ffffff;
+  --color-ink-2: #c3cce8;
+  --color-ink-3: #8792b8;
+  --color-good: #0ca30c;
+  --color-good-text: #4ade80;
+  --color-elevated: #e8871e;
+  --color-high: #e2603b;
+  --color-critical: #d03b3b;
+  --color-critical-text: #f87171;
+  --color-error-deep: #93000a; /* error-container: zone alerts */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Courier Prime", ui-monospace, monospace;
+}
+
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
-  background: #0a0e17;
-  color: #e5e9f0;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: #0d1440;
+  color: #ffffff;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ---- Stitch type scale (fontSize tokens, verbatim) ---- */
+.label-caps {
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.micro-mono {
+  font-family: "Courier Prime", monospace;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 400;
+}
+.body-md {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+.headline-sm {
+  font-family: "Inter", sans-serif;
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.headline-lg {
+  font-family: "Inter", sans-serif;
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.stat-lg {
+  font-family: "Inter", sans-serif;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+.headline-hero {
+  font-family: "Inter", sans-serif;
+  font-size: 60px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .headline-hero {
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+
+/* ---- s0: abstract wireframe globe overlay (contained to the hero) ---- */
+.globe-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150vw;
+  height: 150vw;
+  max-width: 1200px;
+  max-height: 1200px;
+  background-image:
+    radial-gradient(circle at center, transparent 30%, #0d1440 70%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0px, rgba(255, 255, 255, 0.08) 1px, transparent 1px, transparent 40px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0px, rgba(255, 255, 255, 0.08) 1px, transparent 1px, transparent 40px);
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mask-image: radial-gradient(circle, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle, black 40%, transparent 80%);
+  animation: slowSpin 120s linear infinite;
+}
+@keyframes slowSpin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .globe-bg {
+    animation: none;
+  }
+}
+
+/* ---- s0: LIVE pill pulse ---- */
+.pulse-dot {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.4);
+  }
+  70% {
+    opacity: 0.6;
+    box-shadow: 0 0 0 4px rgba(12, 163, 12, 0);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(12, 163, 12, 0);
+  }
+}
+
+/* ---- s2: slider styling (gold rectangular thumb, hairline track) ---- */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 16px;
+  width: 8px;
+  border-radius: 2px;
+  background: #ffb956;
+  cursor: pointer;
+  margin-top: -6px;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+input[type="range"]::-moz-range-thumb {
+  height: 16px;
+  width: 8px;
+  border: none;
+  border-radius: 2px;
+  background: #ffb956;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+input[type="range"]:focus {
+  outline: none;
+}
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px #0f131c, 0 0 0 4px #ffb956;
+}
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #8792b8;
+}
+
+/* ---- s2: custom scrollbar ---- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
 }

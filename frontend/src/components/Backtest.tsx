@@ -5,8 +5,8 @@ import Why from "./Why";
 // the CVD floor band, so direct labels are mandatory, not optional)
 const MODEL_COLOR = "#3987e5";
 const ACTUAL_COLOR = "#199e70";
-const INK_MUTED = "#898781";
-const GRID = "#2c2c2a";
+const INK_MUTED = "#8792b8";
+const GRID = "rgba(255,255,255,0.12)";
 
 export default function Backtest() {
   const { months, modelled, actual, matchPct } = backtest2022();
@@ -21,7 +21,7 @@ export default function Backtest() {
   const line = (vs: number[]) => vs.map((v, i) => `${x(i)},${y(v)}`).join(" ");
 
   return (
-    <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-md">
+    <div className="rounded-xl border border-white/10 bg-panel/90 p-4 backdrop-blur-md">
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-white">
           2022 backtest · modelled vs actual pump price

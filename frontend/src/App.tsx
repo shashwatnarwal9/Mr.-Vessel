@@ -1,7 +1,8 @@
-// M0.9 shell: LANDING hero → COMMAND WINDOW on one scroll, persistent
-// nav above both. The heavy instrument (maplibre + panels) is lazily
+// M0.9 shell, v2 routing: LANDING and COMMAND WINDOW are two exclusive
+// states (no shared scroll — scrolling inside the instrument can never
+// reveal the hero). The heavy instrument (maplibre + panels) is lazily
 // imported so the landing paints without it.
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useStore, type Tab } from "./store";
 import Hero from "./components/Hero";
 import SearchBar from "./components/SearchBar";
@@ -12,148 +13,130 @@ const CommandApp = lazy(() => import("./CommandApp"));
 const TABS: { tab: Tab; hash: string }[] = [
   { tab: "Command Map", hash: "#command" },
   { tab: "Simulation Dashboard", hash: "#dashboard" },
+  { tab: "Ship Simulator", hash: "#ship" },
   { tab: "Past Simulations", hash: "#past" },
 ];
 
 const HASH_TO_TAB = Object.fromEntries(TABS.map((t) => [t.hash, t.tab]));
 
-const prefersReducedMotion = () =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
 export default function App() {
   const tab = useStore((s) => s.tab);
   const setTab = useStore((s) => s.setTab);
   const shipsMode = useStore((s) => s.shipsMode);
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const commandRef = useRef<HTMLElement>(null);
-  // arm = mount the heavy bundle; entered = past the hero (nav styling)
+  // armed = heavy bundle mounted; inCommand = instrument replaces the hero
   const [armed, setArmed] = useState(() => location.hash in HASH_TO_TAB);
-  const [entered, setEntered] = useState(false);
+  const [inCommand, setInCommand] = useState(() => location.hash in HASH_TO_TAB);
 
   // deep link: land straight in the instrument, no hero detour
   useEffect(() => {
     const target = HASH_TO_TAB[location.hash];
-    if (target) {
-      setTab(target);
-      commandRef.current?.scrollIntoView({ behavior: "auto" });
-    }
+    if (target) setTab(target);
   }, [setTab]);
 
-  // two observers, two jobs: PREFETCH the heavy bundle early (inflated
-  // margin), but only flip nav chrome when genuinely in the window
+  // prefetch the heavy bundle once the hero has painted and gone idle
   useEffect(() => {
-    const el = commandRef.current;
-    if (!el) return;
-    const prefetch = new IntersectionObserver(
-      ([e]) => e.isIntersecting && setArmed(true),
-      { root: scrollerRef.current, rootMargin: "50% 0px" },
-    );
-    const presence = new IntersectionObserver(
-      ([e]) => setEntered(e.intersectionRatio > 0.4),
-      { root: scrollerRef.current, threshold: [0.4] },
-    );
-    prefetch.observe(el);
-    presence.observe(el);
-    return () => {
-      prefetch.disconnect();
-      presence.disconnect();
-    };
-  }, []);
+    if (armed) return;
+    const id = setTimeout(() => {
+      import("./CommandApp"); // warm the chunk; lazy() resolves instantly later
+      setArmed(true);
+    }, 2500);
+    return () => clearTimeout(id);
+  }, [armed]);
 
   const enterCommand = (t?: Tab) => {
     setArmed(true);
-    if (t) {
-      setTab(t);
-      history.replaceState(null, "", TABS.find((x) => x.tab === t)?.hash ?? "#command");
-    }
-    commandRef.current?.scrollIntoView({
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-    });
+    setInCommand(true);
+    const next = t ?? useStore.getState().tab;
+    setTab(next);
+    history.replaceState(
+      null,
+      "",
+      TABS.find((x) => x.tab === next)?.hash ?? "#command",
+    );
+  };
+
+  // brand click: back to the landing (the ONLY way to reach it)
+  const goHome = () => {
+    setInCommand(false);
+    history.replaceState(null, "", location.pathname);
   };
 
   return (
-    <div ref={scrollerRef} className="h-full overflow-y-auto">
-      {/* persistent nav: transparent over the hero, chrome over the map */}
+    <div className="h-full overflow-hidden">
+      {/* persistent nav: Stitch TopNavBar (s0 shows it translucent, s1–s4 solid) */}
       <nav
-        className={`fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-1 px-4 transition-colors ${
-          entered
-            ? "border-b border-white/10 bg-black/40 backdrop-blur"
-            : "border-b border-transparent bg-transparent"
+        className={`fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-hairline px-6 transition-colors ${
+          inCommand ? "bg-panel" : "bg-panel/80 backdrop-blur-md"
         }`}
       >
-        <button
-          onClick={() =>
-            scrollerRef.current?.scrollTo({
-              top: 0,
-              behavior: prefersReducedMotion() ? "auto" : "smooth",
-            })
-          }
-          className="mr-4 flex flex-col text-left leading-tight"
-        >
-          <span className="text-sm font-bold tracking-widest text-cyan-300">
-            MR. VESSEL
-          </span>
-          <span className="hidden text-[10px] text-slate-400 sm:block">
-            See how a Gulf shock hits India's pump price and GDP
-          </span>
-        </button>
-        {TABS.map(({ tab: t }) => (
-          <button
-            key={t}
-            onClick={() => enterCommand(t)}
-            aria-current={entered && tab === t ? "page" : undefined}
-            className={`rounded px-3 py-1.5 text-sm transition-colors ${
-              entered && tab === t
-                ? "bg-cyan-500/20 text-cyan-200"
-                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-            }`}
-          >
-            {t}
+        <div className="flex items-center gap-8">
+          <button onClick={goHome} className="flex items-center gap-4">
+            <span className="headline-sm font-black uppercase tracking-tight text-secondary">
+              MR. VESSEL
+            </span>
+            <span className="mx-2 h-4 w-px bg-hairline" />
+            <span
+              className="flex items-center gap-1.5 rounded border border-hairline bg-low px-2 py-1"
+              title={
+                shipsMode === "live"
+                  ? "live AIS + market feeds connected"
+                  : "running on baked demo data"
+              }
+            >
+              <span
+                className={`text-[8px] leading-none ${
+                  shipsMode === "live" ? "pulse-dot text-good" : "text-ink-3"
+                }`}
+              >
+                ●
+              </span>
+              <span
+                className={`label-caps ${shipsMode === "live" ? "text-good" : "text-ink-3"}`}
+              >
+                {shipsMode === "live" ? "LIVE" : "DEMO"}
+              </span>
+            </span>
           </button>
-        ))}
-        {entered ? (
-          <>
-            <SearchBar />
-            <PresetMenu />
-          </>
-        ) : (
-          <span className="ml-auto" />
-        )}
-        <span
-          className={`ml-3 rounded-full border px-2.5 py-1 font-mono text-[10px] tracking-widest ${
-            shipsMode === "live"
-              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
-              : "border-white/15 bg-white/5 text-slate-400"
-          }`}
-          title={
-            shipsMode === "live"
-              ? "live AIS + market feeds connected"
-              : "running on baked demo data"
-          }
-        >
-          ● {shipsMode === "live" ? "LIVE" : "DEMO"}
-        </span>
+          <div className="hidden items-center gap-4 md:flex">
+            {TABS.map(({ tab: t }) => (
+              <button
+                key={t}
+                onClick={() => enterCommand(t)}
+                aria-current={inCommand && tab === t ? "page" : undefined}
+                className={`label-caps transition-colors duration-150 ${
+                  inCommand && tab === t
+                    ? "border-b-2 border-secondary pb-1 text-secondary"
+                    : "text-ink-3 opacity-80 hover:text-gold-hover"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          {inCommand && <SearchBar />}
+          <PresetMenu />
+        </div>
       </nav>
 
-      {/* state 1: the mission */}
-      <Hero onEnter={() => enterCommand()} />
-
-      {/* state 2: the instrument */}
-      <section ref={commandRef} id="command" className="h-screen pt-14">
-        {armed ? (
+      {inCommand ? (
+        /* state 2: the instrument — owns the whole viewport, no hero above */
+        <section id="command" className="h-full pt-16">
           <Suspense
             fallback={
-              <div className="grid h-full place-items-center font-mono text-xs uppercase tracking-[0.3em] text-slate-500">
+              <div className="micro-mono grid h-full place-items-center uppercase tracking-[0.3em] text-ink-3">
                 ● powering on…
               </div>
             }
           >
             <CommandApp />
           </Suspense>
-        ) : (
-          <div className="h-full" />
-        )}
-      </section>
+        </section>
+      ) : (
+        /* state 1: the mission (instrument chunk prefetches in the background) */
+        <Hero onEnter={() => enterCommand()} />
+      )}
     </div>
   );
 }

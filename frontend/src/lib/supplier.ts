@@ -14,6 +14,9 @@ export type Supplier = {
   import_share: number;
   sigma_k: number;
   d: Record<string, number>;
+  // v7 coupled engine (cited in supplier_dependency.json)
+  reroutable: number; // share of interdicted flow that can detour
+  spare_capacity_bbl_d: number; // re-sourcing headroom
 };
 
 export type SupplierRisk = {

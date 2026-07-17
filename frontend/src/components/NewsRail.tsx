@@ -9,11 +9,12 @@ type NewsItem = {
   severity: number; // 1..5
 };
 
-// dataviz status palette (reserved, never series colors)
+// dataviz status palette (reserved, never series colors; no yellow —
+// never collides with brand gold)
 const SEV: Record<number, string> = {
-  1: "#898781",
-  2: "#fab219",
-  3: "#ec835a",
+  1: "#8792b8",
+  2: "#e8871e",
+  3: "#e2603b",
   4: "#d03b3b",
   5: "#d03b3b",
 };
@@ -59,38 +60,54 @@ export default function NewsRail() {
 
   return (
     <aside
-      className="absolute bottom-4 right-4 top-4 z-10 w-72 overflow-y-auto rounded-xl border border-white/15 bg-white/10 p-3 shadow-2xl backdrop-blur-md"
+      className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md"
       aria-label="News feed"
     >
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Signals</h2>
+      <div className="flex items-center justify-between border-b border-hairline pb-2">
+        <h2 className="label-caps flex items-center gap-1 text-ink">
+          <span className="material-symbols-outlined text-[16px] text-secondary">
+            rss_feed
+          </span>{" "}
+          Signals
+        </h2>
         <button
           onClick={() => setItems((cur) => rotateBaked(cur))}
           title="Fetch the latest signals"
-          className="rounded border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-white/10"
+          className="material-symbols-outlined text-[16px] text-ink-3 transition-colors hover:text-ink"
         >
-          ↻ refresh
+          refresh
         </button>
       </div>
       <ul className="flex flex-col gap-2">
         {items.map((n) => (
           <li
             key={n.id}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+            className="flex cursor-pointer flex-col gap-1 rounded-lg border border-hairline bg-navy-deep p-2 transition-colors hover:border-secondary"
           >
-            <div className="mb-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between">
+              <span className="micro-mono text-[9px] uppercase text-ink-3">
+                {new Date(n.ts).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
               <span
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ background: SEV[n.severity] ?? SEV[1] }}
+                className="text-[8px]"
+                style={{ color: SEV[n.severity] ?? SEV[1] }}
                 title={`severity ${n.severity}`}
-              />
-              {n.tag} · {n.source} ·{" "}
-              {new Date(n.ts).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-              })}
+              >
+                ●
+              </span>
             </div>
-            <div className="text-xs leading-snug text-slate-200">{n.title}</div>
+            <p className="body-md leading-snug text-ink">{n.title}</p>
+            <div className="mt-1 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px] text-ink-3">
+                info
+              </span>
+              <span className="label-caps text-[9px] text-ink-2">
+                {n.tag} · Source: {n.source}
+              </span>
+            </div>
           </li>
         ))}
       </ul>

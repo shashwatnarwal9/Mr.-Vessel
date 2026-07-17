@@ -28,28 +28,28 @@ export default function StoryBanner() {
   }, [sigma, scenario]);
 
   return (
-    <div className="absolute left-1/2 top-3 z-10 flex w-[42rem] -translate-x-1/2 items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/60 px-4 py-2 shadow-2xl backdrop-blur-md">
-      <p className="text-sm leading-snug text-slate-100">
+    <div className="absolute left-1/2 top-3 z-10 flex w-[42rem] -translate-x-1/2 items-center gap-4 rounded-lg border border-hairline bg-navy-raised px-6 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.5)] backdrop-blur-md">
+      <span className="material-symbols-outlined shrink-0 text-secondary">
+        {sigma <= 0.01 ? "public" : "trending_down"}
+      </span>
+      <p className="body-md flex-1 leading-snug text-ink">
         {sigma <= 0.01 ? (
           <>
-            <span className="text-slate-300">
+            <span className="text-ink-2">
               Live map of India's energy system — power plants, tankers,
               chokepoints. Drag the slider or run a{" "}
-              <span className="text-amber-300">▶ scenario</span> to see what a
+              <span className="text-secondary">▶ scenario</span> to see what a
               disruption does.
             </span>
           </>
         ) : (
           <>
-            A <span className="font-semibold text-amber-300">{Math.round(sigma * 100)}%</span>{" "}
-            {SCENARIO_PHRASE[scenario]} →{" "}
-            <span className="font-semibold text-white">
-              +₹{pump.toFixed(1)}/L
+            <span className="font-bold">
+              A {Math.round(sigma * 100)}% {SCENARIO_PHRASE[scenario]}
             </span>{" "}
+            → <span className="text-critical-text">+₹{pump.toFixed(1)}/L</span>{" "}
             at the pump,{" "}
-            <span className="font-semibold text-white">
-              {gdp.toFixed(1)} pp
-            </span>{" "}
+            <span className="text-critical-text">{gdp.toFixed(1)} pp</span>{" "}
             {plainMode ? "off India's growth" : "GDP drag"} over 90 days
             <Why
               tag="derived"
@@ -66,10 +66,10 @@ export default function StoryBanner() {
       </p>
       <button
         onClick={() => setPlainMode(!plainMode)}
-        className="shrink-0 rounded border border-white/15 bg-white/5 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10"
+        className="label-caps shrink-0 rounded border border-hairline px-2 py-1 text-ink-3 transition-colors hover:text-ink"
         aria-pressed={!plainMode}
       >
-        {plainMode ? "expert mode" : "plain English"}
+        {plainMode ? "expert mode" : "plain english"}
       </button>
     </div>
   );

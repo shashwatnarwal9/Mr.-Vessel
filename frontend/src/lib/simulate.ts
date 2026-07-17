@@ -44,6 +44,10 @@ export type SimInput = {
   disruptions?: Disruptions;
   mode?: SigmaMode; // persistence (applies to all active disruptions)
   shortfallBblPerDay?: number[]; // from ship→India-impact model
+  /** v7 coupled engine: when set, REPLACES the internal σ-share shortfall
+   *  (the import-mix decides how much a closure bites); world-price and
+   *  freight channels still run off the disruption values. */
+  physicalShortfallOverride?: number; // bbl/day, σ-mode-scaled per day
   days?: number;
 };
 
@@ -90,12 +94,20 @@ export function simulate(input: SimInput, P = SIM, base = BASE): Trajectory {
 
     // raw India shortfall (bbl/day): compounding = shortfalls sum
     // hormuz: crude-artery cut; redsea: transient reroute gap (cost-led)
+    // v7: the coupled mix engine can override the σ-share formula —
+    // scaled by the same persistence mode (peak disruption of the day)
+    const modeScale =
+      d0.hormuz + d0.redsea > 0
+        ? Math.max(h, r) / Math.max(d0.hormuz, d0.redsea, 1e-9)
+        : 1;
     const sigmaShortfall =
-      h * P.hormuzImportShare * P.importsBblPerDay * (1 - P.mitigation) +
-      r *
-        COEFF.redsea_import_share.value *
-        P.importsBblPerDay *
-        COEFF.redsea_shortfall_factor.value;
+      input.physicalShortfallOverride !== undefined
+        ? input.physicalShortfallOverride * modeScale
+        : h * P.hormuzImportShare * P.importsBblPerDay * (1 - P.mitigation) +
+          r *
+            COEFF.redsea_import_share.value *
+            P.importsBblPerDay *
+            COEFF.redsea_shortfall_factor.value;
     const raw = sigmaShortfall + (shipShortfall[t] ?? 0);
 
     // feedback: elevated price destroys demand, easing the shortfall

@@ -24,24 +24,33 @@ function supplierDiamond(): ImageData {
 }
 
 import { mapHandle } from "../lib/mapHandle";
+import { annotateFleet, loadSanctionsIndex } from "../lib/sanctions";
 
-// arrow icon drawn on a canvas — no asset file needed
-function shipArrow(): ImageData {
+// arrow icons drawn on a canvas — no asset files. Sanctioned vessels
+// render red; shadow-fleet hotter (halo ring) per M6c.
+function shipArrow(fill = "#7dd3fc", halo = false): ImageData {
   const c = document.createElement("canvas");
-  c.width = c.height = 24;
+  c.width = c.height = 28;
   const g = c.getContext("2d")!;
+  if (halo) {
+    g.beginPath();
+    g.arc(14, 14, 12, 0, Math.PI * 2);
+    g.strokeStyle = "rgba(255,68,68,0.7)";
+    g.lineWidth = 2;
+    g.stroke();
+  }
   g.beginPath();
-  g.moveTo(12, 2);
-  g.lineTo(20, 22);
-  g.lineTo(12, 17);
-  g.lineTo(4, 22);
+  g.moveTo(14, 4);
+  g.lineTo(22, 24);
+  g.lineTo(14, 19);
+  g.lineTo(6, 24);
   g.closePath();
-  g.fillStyle = "#7dd3fc";
+  g.fillStyle = fill;
   g.fill();
   g.strokeStyle = "#0a0e17";
   g.lineWidth = 1.5;
   g.stroke();
-  return g.getImageData(0, 0, 24, 24);
+  return g.getImageData(0, 0, 28, 28);
 }
 
 const DARK_GLOBE_STYLE: StyleSpecification = {
@@ -144,6 +153,7 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
                   coordinates: [[...r.corridor.polygon, r.corridor.polygon[0]]],
                 },
                 properties: {
+                  id: r.corridor.id,
                   p: r.p,
                   label: `${r.corridor.name}\n${(r.p * 100).toFixed(0)}%`,
                 },
@@ -159,12 +169,16 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
               "fill-color": [
                 "interpolate", ["linear"], ["get", "p"],
                 0, "#0ca30c",
-                0.15, "#fab219",
-                0.35, "#ec835a",
+                0.15, "#e8871e",
+                0.35, "#e2603b",
                 0.6, "#d03b3b",
               ],
               "fill-opacity": 0.28,
             },
+          });
+          map.on("click", "corridors-fill", (e) => {
+            const p = e.features?.[0]?.properties as { id?: string } | undefined;
+            if (p?.id) useStore.getState().setSelectedCorridor(p.id);
           });
           map.addLayer({
             id: "corridors-line",
@@ -174,8 +188,8 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
               "line-color": [
                 "interpolate", ["linear"], ["get", "p"],
                 0, "#0ca30c",
-                0.15, "#fab219",
-                0.35, "#ec835a",
+                0.15, "#e8871e",
+                0.35, "#e2603b",
                 0.6, "#d03b3b",
               ],
               "line-width": 1.5,
@@ -268,6 +282,9 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
 
     map.on("load", () => {
       map.addImage("ship-arrow", shipArrow());
+      map.addImage("ship-arrow-sanctioned", shipArrow("#d03b3b"));
+      map.addImage("ship-arrow-shadow", shipArrow("#ff4444", true));
+      map.addImage("ship-arrow-highlight", shipArrow("#0ca30c"));
       map.addSource("ships", {
         type: "geojson",
         data: useStore.getState().ships ?? {
@@ -280,8 +297,28 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
         type: "symbol",
         source: "ships",
         layout: {
-          "icon-image": "ship-arrow",
+          "icon-image": [
+            "match",
+            ["get", "sanction"],
+            "shadow_fleet", "ship-arrow-shadow",
+            "sanctioned", "ship-arrow-sanctioned",
+            "ship-arrow",
+          ],
           "icon-size": 0.8,
+          "icon-rotate": ["get", "course"],
+          "icon-rotation-alignment": "map",
+          "icon-allow-overlap": true,
+        },
+      });
+      // search-hit flash: same source, green arrow, filtered to one MMSI
+      map.addLayer({
+        id: "ships-highlight",
+        type: "symbol",
+        source: "ships",
+        filter: ["==", ["get", "mmsi"], -1],
+        layout: {
+          "icon-image": "ship-arrow-highlight",
+          "icon-size": 1.1,
           "icon-rotate": ["get", "course"],
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
@@ -341,8 +378,35 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
     const src = mapRef.current?.getSource("ships") as
       | maplibregl.GeoJSONSource
       | undefined;
-    if (src && ships) src.setData(ships);
+    if (!src || !ships) return;
+    src.setData(ships); // paint immediately, annotate when the index lands
+    let alive = true;
+    loadSanctionsIndex()
+      .then(({ idx }) => {
+        if (!alive) return;
+        const { features, screened, matched } = annotateFleet(
+          ships.features,
+          idx,
+        );
+        useStore.getState().setScreening({ screened, matched });
+        (mapRef.current?.getSource("ships") as maplibregl.GeoJSONSource | undefined)?.setData({
+          type: "FeatureCollection",
+          features,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [ships]);
+
+  // search-hit flash: point the highlight layer at the found ship
+  const highlightMmsi = useStore((s) => s.highlightMmsi);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("ships-highlight")) return;
+    map.setFilter("ships-highlight", ["==", ["get", "mmsi"], highlightMmsi ?? -1]);
+  }, [highlightMmsi]);
 
   const contextLayers = useStore((s) => s.contextLayers);
   useEffect(() => {

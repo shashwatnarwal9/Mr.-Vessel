@@ -1,85 +1,257 @@
-import { useEffect, useState } from "react";
-import { loadCorridorRisks, topDriver, type CorridorRisk } from "../lib/risk";
+import { useEffect, useMemo, useState } from "react";
+import {
+  loadCorridorRisks,
+  sanctionsSignalFromFleet,
+  topDriver,
+  type CorridorRisk,
+} from "../lib/risk";
+import { annotateFleet, loadSanctionsIndex } from "../lib/sanctions";
+import {
+  addedDays,
+  routeFromPosition,
+  type Chokepoint,
+} from "../lib/routeGraph";
 import { mapHandle } from "../lib/mapHandle";
+import { useStore, type ShipFeature } from "../store";
 import Why from "./Why";
 
-// status ramp (matches the map corridor coloring)
+// status ramp (matches the map corridor coloring; no yellow — never
+// collides with brand gold)
 const riskColor = (p: number) =>
-  p >= 0.35 ? "#ec835a" : p >= 0.15 ? "#fab219" : "#0ca30c";
+  p >= 0.35 ? "#d03b3b" : p >= 0.15 ? "#e8871e" : "#0ca30c";
 
-/** RA2: corridor risk list — "How likely is a disruption here?" */
+const SIGNAL_SOURCE: Record<string, string> = {
+  news: "GDELT/GLM-tagged headlines near the corridor (live in Tier 2; baked snapshot otherwise)",
+  ais: "transit-count deviation + reroute behaviour (baked snapshot)",
+  sanctions: "red-vessel density on this corridor (OpenSanctions screen)",
+  market: "Brent structure + freight premium proxy (yfinance / snapshot)",
+};
+
+const CORRIDOR_BLOCK: Record<string, Chokepoint[]> = {
+  hormuz: ["hormuz"],
+  suez: ["suez"],
+  babmandeb: ["babmandeb"],
+  malacca: [],
+  cape: [],
+};
+
+function CorridorShips({
+  risk,
+  fleet,
+}: {
+  risk: CorridorRisk;
+  fleet: ShipFeature[];
+}) {
+  const pi = useStore((s) => s.pi);
+  const activeScenario = useStore((s) => s.activeScenario);
+  const ships = useMemo(() => {
+    const [minLon, minLat] = risk.corridor.polygon.reduce(
+      (m, p) => [Math.min(m[0], p[0]), Math.min(m[1], p[1])],
+      [Infinity, Infinity],
+    );
+    const [maxLon, maxLat] = risk.corridor.polygon.reduce(
+      (m, p) => [Math.max(m[0], p[0]), Math.max(m[1], p[1])],
+      [-Infinity, -Infinity],
+    );
+    const pad = 2;
+    return fleet
+      .filter(({ geometry: { coordinates: [lon, lat] } }) =>
+        lon >= minLon - pad && lon <= maxLon + pad && lat >= minLat - pad && lat <= maxLat + pad,
+      )
+      .slice(0, 6);
+  }, [risk, fleet]);
+
+  const disruptionActive =
+    pi >= 0.3 &&
+    ((activeScenario === "hormuz" && risk.corridor.id === "hormuz") ||
+      (activeScenario === "redsea" &&
+        (risk.corridor.id === "babmandeb" || risk.corridor.id === "suez")));
+
+  if (ships.length === 0)
+    return (
+      <p className="micro-mono px-2 py-1 text-ink-3">
+        no tracked vessels in this corridor right now
+      </p>
+    );
+
+  return (
+    <ul className="flex flex-col gap-1 px-1 py-1">
+      {ships.map((f) => {
+        const blocked = new Set(CORRIDOR_BLOCK[risk.corridor.id] ?? []);
+        const normal = routeFromPosition(f.geometry.coordinates, "SIKKA");
+        const alt =
+          blocked.size > 0
+            ? routeFromPosition(f.geometry.coordinates, "SIKKA", blocked)
+            : null;
+        const extra =
+          normal && alt
+            ? addedDays(normal.nm, alt.nm, f.properties.speed || 12)
+            : null;
+        const impact = !disruptionActive
+          ? "monitoring"
+          : blocked.size === 0
+            ? "delayed (congestion)"
+            : alt
+              ? `rerouted +${extra?.toFixed(1)}d`
+              : "blocked — no sea alternative";
+        return (
+          <li
+            key={f.properties.mmsi}
+            className="micro-mono flex items-center justify-between rounded border border-hairline bg-navy-deep px-2 py-1"
+          >
+            <span
+              className={
+                f.properties.sanction ? "text-critical-text" : "text-ink-2"
+              }
+            >
+              {f.properties.sanction === "shadow_fleet" && "🕳 "}
+              {f.properties.sanction === "sanctioned" && "⛔ "}
+              {f.properties.name}
+            </span>
+            <span
+              className={
+                impact.startsWith("blocked")
+                  ? "text-critical-text"
+                  : impact.startsWith("rerouted")
+                    ? "text-elevated"
+                    : "text-ink-3"
+              }
+            >
+              {impact}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** RA2 + M6e: corridor risk with full per-signal provenance and
+ *  click-through to the ships transiting each corridor. */
 export default function RiskPanel() {
   const [risks, setRisks] = useState<CorridorRisk[]>([]);
   const [open, setOpen] = useState(true);
+  const [fleet, setFleet] = useState<ShipFeature[]>([]);
+  const ships = useStore((s) => s.ships);
+  const selectedCorridor = useStore((s) => s.selectedCorridor);
+  const setSelectedCorridor = useStore((s) => s.setSelectedCorridor);
 
   useEffect(() => {
     loadCorridorRisks().then(setRisks).catch(() => {});
   }, []);
 
-  if (risks.length === 0) return null;
+  // annotate the fleet once the index is available (shared logic w/ map)
+  useEffect(() => {
+    if (!ships) return;
+    let alive = true;
+    loadSanctionsIndex()
+      .then(({ idx }) => {
+        if (!alive) return;
+        setFleet(annotateFleet(ships.features, idx).features);
+      })
+      .catch(() => setFleet(ships.features));
+    return () => {
+      alive = false;
+    };
+  }, [ships]);
+
+  // M6e: live sanctions signal — recompute from the screened fleet
+  const liveRisks = useMemo(() => {
+    if (fleet.length === 0) return risks;
+    return risks.map((r) => {
+      const live = sanctionsSignalFromFleet(r.corridor, fleet);
+      if (!live) return r;
+      const c = r.contributions.map((x) =>
+        x.signal === "sanctions"
+          ? { ...x, value: live.value, logOdds: (x.logOdds / Math.max(x.value, 1e-9)) * live.value, live: true }
+          : x,
+      );
+      // re-fuse with the substituted signal (same weights, same prior)
+      const logit0 = Math.log(r.corridor.p0 / (1 - r.corridor.p0));
+      const x = logit0 + c.reduce((s, t) => s + t.logOdds, 0);
+      return { ...r, p: 1 / (1 + Math.exp(-x)), contributions: c };
+    });
+  }, [risks, fleet]);
+
+  if (liveRisks.length === 0) return null;
 
   return (
-    <aside className="absolute left-4 top-[24rem] z-10 w-72 rounded-xl border border-white/15 bg-white/10 shadow-2xl backdrop-blur-md">
+    <aside className="flex w-full shrink-0 flex-col rounded-xl border border-hairline bg-panel/90 shadow-2xl backdrop-blur-md">
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between px-4 py-2 text-left"
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
-        <span className="text-sm font-semibold text-white">
-          Corridor risk{" "}
-          <span className="text-[11px] font-normal text-slate-400">
-            · chance of disruption, next 30 days
-          </span>
+        <span className="label-caps flex items-center gap-1 text-ink">
+          Corridor Risk
           <Why
             tag="derived"
-            formula="P = sigmoid(logit(base rate) + Σ weight × signal) over four signals: news, ship behaviour, sanctions density, market pricing. Baked snapshot (2026-07); live signals in Tier 2. Band shrinks as signals corroborate."
+            formula="P = sigmoid(logit(base rate) + Σ weight × signal). Sanctions signal is DERIVED live from red-vessel density when the fleet is screened; other signals are the dated snapshot until Tier-2 live wiring."
             sources={[]}
           />
         </span>
-        <span className="text-slate-400">{open ? "▾" : "▸"}</span>
+        <span className="flex items-center gap-2">
+          <span className="micro-mono text-ink-3">next 30 days</span>
+          <span className="text-ink-3">{open ? "▾" : "▸"}</span>
+        </span>
       </button>
       {open && (
-        <ul className="flex flex-col gap-1 px-3 pb-3">
-          {risks.map((r) => (
+        <ul className="flex max-h-[22rem] flex-col overflow-y-auto px-2 pb-2">
+          {liveRisks.map((r, i) => (
             <li key={r.corridor.id}>
-              <button
-                onClick={() =>
-                  mapHandle.current?.flyTo({
-                    center: r.corridor.centroid,
-                    zoom: 5,
-                    duration: 1800,
-                  })
+              <div
+                className={
+                  i < liveRisks.length - 1
+                    ? "border-b border-hairline/50"
+                    : undefined
                 }
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-left hover:bg-white/10"
               >
-                <span className="flex items-center justify-between">
-                  <span className="text-xs text-slate-100">
-                    {r.corridor.name}
+                <button
+                  onClick={() => {
+                    setSelectedCorridor(
+                      selectedCorridor === r.corridor.id ? null : r.corridor.id,
+                    );
+                    mapHandle.current?.flyTo({
+                      center: r.corridor.centroid,
+                      zoom: 5,
+                      duration: 1800,
+                    });
+                  }}
+                  className="group w-full cursor-pointer rounded p-2 text-left transition-colors hover:bg-gold-wash"
+                >
+                  <span className="flex items-center justify-between">
+                    <span className="body-md flex items-center gap-2 text-ink">
+                      <span
+                        className="text-[8px]"
+                        style={{ color: riskColor(r.p) }}
+                      >
+                        ●
+                      </span>
+                      {r.corridor.name}
+                      <Why
+                        formula={`inputs → ${r.contributions
+                          .map(
+                            (c) =>
+                              `${c.signal} ${c.value.toFixed(2)}${(c as { live?: boolean }).live ? " (live fleet)" : " (snapshot)"}`,
+                          )
+                          .join(" · ")} · prior ${r.corridor.p0} (${r.corridor.p0_basis}). ${Object.entries(SIGNAL_SOURCE)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(" | ")}`}
+                        sources={[]}
+                      />
+                    </span>
+                    <span className="micro-mono tabular-nums text-ink-2">
+                      {(r.p * 100).toFixed(0)}% ± {(r.band * 100).toFixed(0)}
+                    </span>
                   </span>
-                  <span
-                    className="text-xs font-semibold tabular-nums"
-                    style={{ color: riskColor(r.p) }}
-                  >
-                    {(r.p * 100).toFixed(0)}% ± {(r.band * 100).toFixed(0)}
+                  <span className="micro-mono block pl-5 text-ink-3">
+                    driven by {topDriver(r)} · click for transiting ships
                   </span>
-                </span>
-                <span className="mt-1 flex h-1 w-full gap-0.5 overflow-hidden rounded">
-                  {r.contributions.map((c) => (
-                    <span
-                      key={c.signal}
-                      title={`${c.signal}: ${c.value}`}
-                      className="h-full bg-cyan-400/70"
-                      style={{
-                        width: `${Math.max(2, c.logOdds * 38)}px`,
-                        opacity: 0.35 + 0.65 * c.value,
-                      }}
-                    />
-                  ))}
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  driven by {topDriver(r)}
-                </span>
-              </button>
+                </button>
+                {selectedCorridor === r.corridor.id && (
+                  <CorridorShips risk={r} fleet={fleet} />
+                )}
+              </div>
             </li>
           ))}
         </ul>

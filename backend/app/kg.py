@@ -6,6 +6,7 @@ EDGES are BFS-traversed in Python — identical answer, demo never breaks.
 """
 
 import os
+import time
 from collections import deque
 from typing import Any
 
@@ -56,12 +57,17 @@ EDGES: list[tuple[str, str, str, str, str]] = [
 ]
 
 _driver = None
+_neo4j_down_until = 0.0  # after a failure, skip Neo4j for a cooldown window
 
 
 def driver():
     global _driver
     if _driver is None:
-        _driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        _driver = GraphDatabase.driver(
+            NEO4J_URI,
+            auth=(NEO4J_USER, NEO4J_PASSWORD),
+            connection_timeout=2.0,  # fail fast — baked fallback is instant
+        )
     return _driver
 
 
@@ -109,6 +115,9 @@ def _baked_cascade(chokepoint: str) -> dict[str, Any]:
 
 def cascade(chokepoint: str) -> dict[str, Any]:
     """Downstream cascade + feeding suppliers for one chokepoint."""
+    global _neo4j_down_until
+    if time.monotonic() < _neo4j_down_until:
+        return _baked_cascade(chokepoint)
     try:
         with driver().session() as s:
             rows = s.run(
@@ -130,6 +139,8 @@ def cascade(chokepoint: str) -> dict[str, Any]:
             return _baked_cascade(chokepoint)
         return _graph_payload(edges, "live")
     except Exception:
+        # don't re-pay the connection timeout on every call while Neo4j is down
+        _neo4j_down_until = time.monotonic() + 300
         return _baked_cascade(chokepoint)
 
 

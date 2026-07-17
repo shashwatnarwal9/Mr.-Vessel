@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 // dataviz tokens
-const INK_MUTED = "#898781";
-const GRID = "#2c2c2a";
+const INK_MUTED = "#8792b8";
+const GRID = "rgba(255,255,255,0.12)";
 
 export type TrajSeries = { name: string; color: string; values: number[] };
 
@@ -39,14 +39,14 @@ export default function TrajChart({
 
   return (
     <figure className="m-0">
-      <figcaption className="mb-1 text-xs font-semibold text-white">
-        {title}
-      </figcaption>
+      {title && (
+        <figcaption className="label-caps mb-1 text-ink-3">{title}</figcaption>
+      )}
       <svg
         width={width}
         height={height}
         role="img"
-        aria-label={title}
+        aria-label={title || series.map((s) => s.name).join(", ")}
         onPointerMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           const i = Math.round(((e.clientX - r.left - PAD.l) / iw) * (n - 1));
@@ -74,7 +74,7 @@ export default function TrajChart({
               x={x(n - 1) + 5}
               y={y(s.values[n - 1]) + 3}
               fontSize={10}
-              fill="#e5e9f0"
+              fill="#ffffff"
             >
               {s.name}
             </text>
@@ -89,7 +89,7 @@ export default function TrajChart({
         {hover !== null && (
           <g pointerEvents="none">
             <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={PAD.t + ih} stroke={INK_MUTED} />
-            <text x={x(hover) < width / 2 ? x(hover) + 6 : x(hover) - 6} y={PAD.t + 10} fontSize={10} fill="#e5e9f0" textAnchor={x(hover) < width / 2 ? "start" : "end"}>
+            <text x={x(hover) < width / 2 ? x(hover) + 6 : x(hover) - 6} y={PAD.t + 10} fontSize={10} fill="#ffffff" textAnchor={x(hover) < width / 2 ? "start" : "end"}>
               d {hover}:{" "}
               {series.map((s) => `${s.name} ${format(s.values[hover])}`).join(" · ")}
             </text>
@@ -99,7 +99,7 @@ export default function TrajChart({
           </g>
         )}
       </svg>
-      <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+      <div className="micro-mono mt-1 flex flex-wrap items-center gap-3 text-ink-3">
         {series.map((s) => (
           <span key={s.name} className="inline-flex items-center gap-1.5">
             <span className="h-0.5 w-4" style={{ background: s.color }} />

@@ -69,6 +69,46 @@ export async function loadCorridorRisks(): Promise<CorridorRisk[]> {
   return _risks;
 }
 
+/** M6e: sanctions signal DERIVED from the currently screened fleet —
+ *  tier-weighted red-vessel density inside the corridor geofence.
+ *  Replaces the baked snapshot value when a fleet is available. */
+export function sanctionsSignalFromFleet(
+  corridor: Corridor,
+  features: {
+    geometry: { coordinates: [number, number] };
+    properties: { sanction?: string };
+  }[],
+): { value: number; inCorridor: number; red: number } | null {
+  const [minLon, minLat] = corridor.polygon.reduce(
+    (m, p) => [Math.min(m[0], p[0]), Math.min(m[1], p[1])],
+    [Infinity, Infinity],
+  );
+  const [maxLon, maxLat] = corridor.polygon.reduce(
+    (m, p) => [Math.max(m[0], p[0]), Math.max(m[1], p[1])],
+    [-Infinity, -Infinity],
+  );
+  const pad = 2; // degrees — approach waters count
+  const inside = features.filter(({ geometry: { coordinates: [lon, lat] } }) =>
+    lon >= minLon - pad && lon <= maxLon + pad && lat >= minLat - pad && lat <= maxLat + pad,
+  );
+  if (inside.length === 0) return null; // no fleet data here → keep snapshot
+  const redWeight = inside.reduce(
+    (s, f) =>
+      s +
+      (f.properties.sanction === "shadow_fleet"
+        ? 1
+        : f.properties.sanction === "sanctioned"
+          ? 0.7
+          : 0),
+    0,
+  );
+  return {
+    value: Math.min(1, (redWeight / inside.length) * 2),
+    inCorridor: inside.length,
+    red: inside.filter((f) => f.properties.sanction).length,
+  };
+}
+
 /** Plain-language driver line: which signal moved this score most. */
 export function topDriver(r: CorridorRisk): string {
   const top = [...r.contributions].sort((a, b) => b.logOdds - a.logOdds)[0];

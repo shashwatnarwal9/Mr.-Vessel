@@ -31,12 +31,12 @@ export default function PresetMenu() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="rounded border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-500/20"
+        className="label-caps flex items-center gap-1 rounded bg-secondary px-4 py-2 font-bold text-navy transition-colors hover:bg-gold-hover"
       >
-        ▶ Scenarios
+        <span>▶</span> Scenarios
       </button>
       {open && (
-        <ul className="absolute right-0 top-full z-30 mt-1 w-64 rounded-lg border border-white/15 bg-[#101624]/95 shadow-2xl backdrop-blur-md">
+        <ul className="absolute right-0 top-full z-30 mt-1 w-64 rounded border border-hairline bg-navy-deep shadow-2xl">
           {PRESETS.map((p) => (
             <li key={p.id}>
               <button
@@ -44,10 +44,10 @@ export default function PresetMenu() {
                   setOpen(false);
                   runPreset(p);
                 }}
-                className="flex w-full flex-col px-3 py-2 text-left hover:bg-white/10"
+                className="flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-gold-wash"
               >
-                <span className="text-sm text-amber-100">{p.name}</span>
-                <span className="text-[11px] text-slate-400">
+                <span className="body-md text-ink">{p.name}</span>
+                <span className="micro-mono text-ink-3">
                   σ → {p.sigma} · {p.mode}
                 </span>
               </button>

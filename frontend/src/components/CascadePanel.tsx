@@ -15,17 +15,17 @@ function Stat({
   why: React.ReactNode;
 }) {
   const toneCls = {
-    ok: "text-emerald-300",
-    warn: "text-amber-300",
-    bad: "text-red-400",
+    ok: "text-good",
+    warn: "text-elevated",
+    bad: "text-critical",
   }[tone];
   return (
-    <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wider text-slate-400">
+    <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-navy-deep p-2">
+      <div className="label-caps text-[9px] leading-tight text-ink-3">
         {label}
         {why}
       </div>
-      <div className={`text-lg font-semibold tabular-nums ${toneCls}`}>
+      <div className={`text-sm font-semibold tabular-nums ${toneCls}`}>
         {value}
       </div>
     </div>
@@ -75,36 +75,42 @@ export default function CascadePanel() {
   const gdpMean = t.gdp.reduce((a, b) => a + b, 0) / t.gdp.length;
 
   return (
-    <aside className="absolute left-4 top-4 z-10 w-72 rounded-xl border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">
+    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md">
+      <div className="flex items-center justify-between">
+        <h2 className="label-caps flex items-center gap-1 text-ink">
+          <span className="mr-1 text-[8px] text-elevated">●</span>
           {plain ? txt.plain : txt.expert}
         </h2>
-        <div className="flex gap-1 text-[10px]">
-          <button
-            onClick={() => setPiMode("manual")}
-            className={`rounded px-1.5 py-0.5 ${piMode === "manual" ? "bg-cyan-500/25 text-cyan-200" : "text-slate-400 hover:bg-white/10"}`}
-          >
-            what-if
-          </button>
-          <button
-            onClick={() => setPiMode("fused")}
-            disabled={piFused === null}
-            title={piFused === null ? "backend offline" : "σ estimated live from news + market + ship signals"}
-            className={`rounded px-1.5 py-0.5 disabled:opacity-40 ${piMode === "fused" ? "bg-cyan-500/25 text-cyan-200" : "text-slate-400 hover:bg-white/10"}`}
-          >
-            {plain ? "live estimate" : "fused"}
-            {confidence !== null && piMode === "fused"
-              ? ` ${(confidence * 100).toFixed(0)}%`
-              : ""}
-          </button>
-        </div>
+      </div>
+      <div className="flex rounded-full border border-hairline bg-navy-deep p-1">
+        <button
+          onClick={() => setPiMode("manual")}
+          className={`label-caps flex-1 rounded-full py-1 text-center ${piMode === "manual" ? "bg-raised text-ink" : "text-ink-3 hover:text-ink"}`}
+        >
+          WHAT-IF
+        </button>
+        <button
+          onClick={() => setPiMode("fused")}
+          disabled={piFused === null}
+          title={piFused === null ? "backend offline" : "σ estimated live from news + market + ship signals"}
+          className={`label-caps flex-1 rounded-full py-1 text-center disabled:opacity-40 ${piMode === "fused" ? "bg-raised text-ink" : "text-ink-3 hover:text-ink"}`}
+        >
+          {plain ? "LIVE EST." : "FUSED"}
+          {confidence !== null && piMode === "fused"
+            ? ` ${(confidence * 100).toFixed(0)}%`
+            : ""}
+        </button>
       </div>
       <label
-        className="block text-xs text-slate-400"
+        className="flex flex-col gap-2"
         title={plain ? undefined : "σ: disruption severity 0–1, share of normal chokepoint flow blocked"}
       >
-        {plain ? `${txt.ask} = ${Math.round(pi * 100)}%` : `σ = ${pi.toFixed(2)}`}
+        <span className="micro-mono flex justify-between text-ink-2">
+          <span>{plain ? txt.ask : "σ"}</span>
+          <span className="font-bold text-secondary">
+            {plain ? `${Math.round(pi * 100)}%` : pi.toFixed(2)}
+          </span>
+        </span>
         <input
           type="range"
           min={0}
@@ -112,13 +118,13 @@ export default function CascadePanel() {
           step={0.01}
           value={pi}
           onChange={(e) => setPi(Number(e.target.value))}
-          className="mt-1 w-full accent-cyan-400"
+          className="w-full"
           aria-label="Disruption severity"
         />
       </label>
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Stat
-          label={plain ? "Refineries running" : "Run rate (90d min)"}
+          label={plain ? "Refineries" : "Run rate (90d min)"}
           value={`${(runMin * 100).toFixed(1)}%`}
           tone={tone(1 - runMin)}
           why={
@@ -129,7 +135,7 @@ export default function CascadePanel() {
           }
         />
         <Stat
-          label={plain ? "Petrol price (Delhi)" : "Pump price (settled)"}
+          label={plain ? "Petrol (Delhi)" : "Pump price (settled)"}
           value={`₹${pumpSettled.toFixed(1)}/L`}
           tone={tone(pi)}
           why={
@@ -140,7 +146,7 @@ export default function CascadePanel() {
           }
         />
         <Stat
-          label={plain ? "Electricity at risk" : "Power stress (peak)"}
+          label={plain ? "Elec. at risk" : "Power stress (peak)"}
           value={`${(stressPeak * 100).toFixed(1)}%`}
           tone={tone(stressPeak * 4)}
           why={

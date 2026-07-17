@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { Band } from "../lib/montecarlo";
 
 // palette.md dark-mode chrome tokens
-const INK_MUTED = "#898781";
-const GRID = "#2c2c2a";
+const INK_MUTED = "#8792b8";
+const GRID = "rgba(255,255,255,0.12)";
 
 type Props = {
   title: string;
@@ -51,14 +51,14 @@ export default function FanChart({
 
   return (
     <figure className="m-0">
-      <figcaption className="mb-0.5 text-[11px] uppercase tracking-wider text-slate-400">
-        {title}
-      </figcaption>
+      {title && (
+        <figcaption className="label-caps mb-0.5 text-ink-3">{title}</figcaption>
+      )}
       <svg
         width={width}
         height={height}
         role="img"
-        aria-label={`${title}: median ${format(last.p50)} at ${unit} ${bands.length - 1}, 90% band ${format(last.p5)} to ${format(last.p95)}`}
+        aria-label={`${title || "fan chart"}: median ${format(last.p50)} at ${unit} ${bands.length - 1}, 90% band ${format(last.p5)} to ${format(last.p95)}`}
         onPointerMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           const i = Math.round(
@@ -76,7 +76,7 @@ export default function FanChart({
         <polygon points={area("p25", "p75")} fill={color} opacity={0.28} />
         <polyline points={median} fill="none" stroke={color} strokeWidth={2} />
         {/* direct label: end median (ink token, not series color) */}
-        <text x={x(bands.length - 1) + 4} y={y(last.p50) + 3} fontSize={10} fill="#e5e9f0">
+        <text x={x(bands.length - 1) + 4} y={y(last.p50) + 3} fontSize={10} fill="#ffffff">
           {format(last.p50)}
         </text>
         <text x={PAD.l} y={height - 3} fontSize={9} fill={INK_MUTED}>
@@ -93,7 +93,7 @@ export default function FanChart({
               x={hover < bands.length / 2 ? x(hover) + 6 : x(hover) - 6}
               y={PAD.t + 10}
               fontSize={10}
-              fill="#e5e9f0"
+              fill="#ffffff"
               textAnchor={hover < bands.length / 2 ? "start" : "end"}
             >
               {unit} {hover}: {format(h.p50)} ({format(h.p5)}–{format(h.p95)})

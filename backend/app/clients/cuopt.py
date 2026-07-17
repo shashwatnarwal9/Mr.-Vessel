@@ -86,21 +86,15 @@ class LiveCuOpt:
     mode = "live"
     _STATIC = {"hormuz": 14.0}
 
-    async def reroute_days(self, chokepoint: str) -> float:
-        cp = chokepoint.lower()
-        if cp != "redsea":
-            return self._STATIC.get(cp, 0.0)
-        src, dst = NODES.index("NOVO"), NODES.index("SIKKA")
-        normal = _shortest(cost_matrix(), src, dst)
-        # cuOpt expects direct travel costs between stops (complete graph),
-        # so feed it all-pairs shortest-path days under the closure
-        closed = cost_matrix({("SUEZ", "BAB")})
-        n = len(NODES)
-        apsp = [[_shortest(closed, i, j) for j in range(n)] for i in range(n)]
+    async def solve_matrix(
+        self, matrix: list[list[float]], src: int, dst: int
+    ) -> float:
+        """Generic one-vehicle route cost over an all-pairs cost matrix.
+        Used by the Red Sea branch AND the Ship Simulator (M6d)."""
         payload = {
             "action": "cuOpt_OptimizedRouting",
             "data": {
-                "cost_matrix_data": {"data": {"0": apsp}},
+                "cost_matrix_data": {"data": {"0": matrix}},
                 "fleet_data": {"vehicle_locations": [[src, dst]]},
                 "task_data": {"task_locations": [dst]},
             },
@@ -118,8 +112,21 @@ class LiveCuOpt:
                 r = await http.get(STATUS_URL + req_id)
                 body = r.json() if r.content else {}
             r.raise_for_status()
-            cost = body["response"]["solver_response"]["solution_cost"]
-        return max(0.0, float(cost) - normal)
+            return float(body["response"]["solver_response"]["solution_cost"])
+
+    async def reroute_days(self, chokepoint: str) -> float:
+        cp = chokepoint.lower()
+        if cp != "redsea":
+            return self._STATIC.get(cp, 0.0)
+        src, dst = NODES.index("NOVO"), NODES.index("SIKKA")
+        normal = _shortest(cost_matrix(), src, dst)
+        # cuOpt expects direct travel costs between stops (complete graph),
+        # so feed it all-pairs shortest-path days under the closure
+        closed = cost_matrix({("SUEZ", "BAB")})
+        n = len(NODES)
+        apsp = [[_shortest(closed, i, j) for j in range(n)] for i in range(n)]
+        cost = await self.solve_matrix(apsp, src, dst)
+        return max(0.0, cost - normal)
 
 
 if __name__ == "__main__":

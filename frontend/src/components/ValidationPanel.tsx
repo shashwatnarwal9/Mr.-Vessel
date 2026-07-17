@@ -8,23 +8,23 @@ export default function ValidationPanel() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-xl border border-white/15 bg-white/10 backdrop-blur-md">
+    <div className="rounded-lg border border-hairline bg-panel">
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
-        <span className="text-sm font-semibold text-white">
-          Is this accurate? · the 2022 test
+        <span className="label-caps text-ink-3">
+          IS THIS ACCURATE? · THE 2022 TEST
         </span>
-        <span className="text-slate-400">{open ? "▾" : "▸"}</span>
+        <span className="text-ink-3">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
         <div className="px-4 pb-4">
-          <p className="mb-3 text-xs leading-relaxed text-slate-300">
+          <p className="body-md mb-3 leading-relaxed text-ink-2">
             We replayed the real 2022 crude spike through this exact engine
             and compared it with actual Delhi pump prices.{" "}
-            <span className="text-slate-400">
+            <span className="text-ink-3">
               Honest label: 2022 was a <em>policy-administered</em> episode
               (excise cuts, price freezes), and our policy-damping
               coefficient is calibrated on it — so this chart shows the

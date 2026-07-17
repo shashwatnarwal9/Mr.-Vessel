@@ -51,6 +51,19 @@ async def market_brent():
         return {"brent_usd": 80.0, "mode": "baked"}
 
 
+@app.post("/route/solve")
+async def route_solve(body: dict):
+    """M6d: cuOpt-verify a route cost over the client's waypoint matrix."""
+    solve = getattr(clients["router"], "solve_matrix", None)
+    if not solve:
+        return {"cost": None, "mode": "unavailable"}
+    try:
+        cost = await solve(body["matrix"], int(body["src"]), int(body["dst"]))
+        return {"cost": cost, "mode": "live"}
+    except Exception:
+        return {"cost": None, "mode": "unavailable"}
+
+
 @app.get("/rag/analogs")
 async def rag_analogs(desc: str):
     from . import rag

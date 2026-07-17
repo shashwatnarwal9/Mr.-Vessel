@@ -1,11 +1,12 @@
+import { useEffect, useRef } from "react";
 import { useStore } from "../store";
 import { FUEL_COLORS } from "./GlobeMap";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-3 py-1 text-sm">
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="text-right text-slate-100">{value}</dd>
+    <div className="flex flex-col">
+      <dt className="label-caps text-[9px] text-ink-3">{label}</dt>
+      <dd className="micro-mono text-ink">{value}</dd>
     </div>
   );
 }
@@ -13,23 +14,32 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function PlantPanel() {
   const plant = useStore((s) => s.selectedPlant);
   const setPlant = useStore((s) => s.setSelectedPlant);
+  const panelRef = useRef<HTMLElement>(null);
+  // the left column stacks panels — scroll the plant card into view on select
+  useEffect(() => {
+    if (plant)
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [plant?.name]);
   if (!plant) return null;
 
   return (
-    <aside className="absolute bottom-4 left-4 z-10 w-72 rounded-xl border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <h2 className="text-sm font-semibold leading-snug text-white">
+    <aside
+      ref={panelRef}
+      className="flex w-full shrink-0 flex-col gap-3 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="headline-sm font-bold leading-snug text-ink">
           {plant.name}
         </h2>
         <button
           onClick={() => setPlant(null)}
           aria-label="Close plant panel"
-          className="rounded px-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+          className="rounded px-1.5 text-ink-3 hover:text-ink"
         >
           ×
         </button>
       </div>
-      <dl>
+      <dl className="grid grid-cols-2 gap-2 border-t border-hairline pt-2">
         <Row
           label="Capacity"
           value={`${plant.capacity_mw.toLocaleString()} MW`}

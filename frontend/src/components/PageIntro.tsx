@@ -18,16 +18,16 @@ export default function PageIntro({
 
   return (
     <div className="mb-3">
-      <p className="text-sm text-slate-300">{intro}</p>
+      <p className="body-md text-ink-3">{intro}</p>
       {showHint && (
-        <div className="mt-2 flex items-start justify-between gap-3 rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-2">
-          <p className="text-xs leading-snug text-cyan-100">💡 {hint}</p>
+        <div className="mt-2 flex items-center justify-between gap-3 rounded border border-secondary bg-gold-wash p-2">
+          <p className="body-md flex items-center gap-2 leading-snug text-secondary"><span className="material-symbols-outlined text-[16px]">info</span>{hint}</p>
           <button
             onClick={() => {
               localStorage.setItem(key, "seen");
               setShowHint(false);
             }}
-            className="shrink-0 rounded px-1.5 text-cyan-300 hover:bg-white/10"
+            className="shrink-0 rounded px-1.5 text-secondary hover:text-gold-hover"
             aria-label="Dismiss hint"
           >
             ×

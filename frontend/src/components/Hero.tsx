@@ -1,98 +1,124 @@
 import { useEffect, useState } from "react";
-import { loadCorridorRisks } from "../lib/risk";
+import { loadCorridorRisks, type CorridorRisk } from "../lib/risk";
 
-/** M0.9 hero: mission in one line, then the instrument. One ambient
- *  motion (wireframe globe, CSS-only), honest credibility chips, a live
- *  micro-readout from the baked corridor snapshot (offline-safe). */
+/** M0.9 hero, Stitch s0 skin: mission in one line, then the instrument.
+ *  One ambient motion (wireframe globe, CSS-only), honest credibility
+ *  chips, a live micro-readout from the baked corridor snapshot
+ *  (offline-safe). */
+const CHIPS: { icon: string; text: string }[] = [
+  { icon: "factory", text: "1,589 real Indian power plants" },
+  { icon: "directions_boat", text: "5,388 vessels screened" },
+  { icon: "tune", text: "calibrated on the 2022 oil shock" },
+];
+
 export default function Hero({ onEnter }: { onEnter: () => void }) {
-  const [readout, setReadout] = useState<string | null>(null);
+  const [risks, setRisks] = useState<CorridorRisk[] | null>(null);
 
   useEffect(() => {
     loadCorridorRisks()
-      .then((risks) => {
-        const top = risks[0];
-        const hormuz = risks.find((r) => r.corridor.id === "hormuz");
-        setReadout(
-          `Corridor risk now: ${top.corridor.name} ${(top.p * 100).toFixed(0)}%` +
-            (hormuz && hormuz !== top
-              ? ` · Hormuz ${(hormuz.p * 100).toFixed(0)}%`
-              : ""),
-        );
-      })
-      .catch(() => setReadout(null)); // static hero still stands alone
+      .then(setRisks)
+      .catch(() => setRisks(null)); // static hero still stands alone
   }, []);
+
+  const top = risks?.[0] ?? null;
+  const hormuz = risks?.find((r) => r.corridor.id === "hormuz") ?? null;
 
   return (
     <section
-      className="relative flex h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
+      className="relative flex h-screen flex-col overflow-hidden"
       aria-label="Mr. Vessel — mission"
     >
-      {/* the one ambient motion: faint wireframe globe, slow spin */}
-      <svg
-        viewBox="0 0 400 400"
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[52rem] w-[52rem] -translate-x-1/2 -translate-y-1/2 animate-[spin_180s_linear_infinite] opacity-[0.08] motion-reduce:animate-none"
-      >
-        <g fill="none" stroke="#94a3b8" strokeWidth="0.6">
-          <circle cx="200" cy="200" r="180" />
-          <ellipse cx="200" cy="200" rx="180" ry="70" />
-          <ellipse cx="200" cy="200" rx="180" ry="130" />
-          <ellipse cx="200" cy="200" rx="70" ry="180" />
-          <ellipse cx="200" cy="200" rx="130" ry="180" />
-          <line x1="20" y1="200" x2="380" y2="200" />
-        </g>
-      </svg>
+      {/* the one ambient motion: abstract wireframe globe, slow spin */}
+      <div className="globe-bg" aria-hidden="true" />
 
-      <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.3em] text-slate-500">
-        Geopolitical energy-disruption instrument
-      </p>
-      <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
-        See how a shock in the Gulf reaches India's pump price.
-      </h1>
-      <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-300">
-        Simulate oil-supply disruptions — a blocked strait, a sanctioned
-        tanker, a production cut — and trace the cascade to India's fuel,
-        power, and economy over 90 days.
-      </p>
+      <main className="relative z-10 mx-auto flex w-full max-w-[1200px] flex-grow flex-col items-center justify-center px-4 pb-16 pt-24 text-center">
+        {/* Eyebrow */}
+        <div className="label-caps mb-2 flex items-center gap-2 tracking-[0.2em] text-ink-3">
+          <span className="h-px w-4 bg-hairline" />
+          GEOPOLITICAL ENERGY-DISRUPTION INSTRUMENT
+          <span className="h-px w-4 bg-hairline" />
+        </div>
 
-      <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
-        {[
-          "1,589 real Indian power plants",
-          "5,388 vessels screened · OpenSanctions",
-          "calibrated on the 2022 oil shock",
-        ].map((chip) => (
-          <span
-            key={chip}
-            className="rounded border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[11px] text-slate-300"
-          >
-            {chip}
-          </span>
-        ))}
-      </div>
+        {/* Headline */}
+        <h1 className="headline-hero mb-6 max-w-4xl text-ink">
+          See how a shock in the Gulf reaches India's pump price.
+        </h1>
 
-      {readout && (
-        <p className="mt-4 font-mono text-xs text-amber-300/90" aria-live="polite">
-          ● {readout}
+        {/* Subline */}
+        <p className="body-md mb-12 max-w-2xl text-ink-2">
+          Simulate oil-supply disruptions — a blocked strait, a sanctioned
+          tanker, a production cut — and trace the cascade to India's fuel,
+          power, and economy over 90 days.
         </p>
-      )}
 
-      <button
-        onClick={onEnter}
-        className="mt-9 rounded-lg border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-sm font-medium text-amber-200 transition-colors hover:bg-amber-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-      >
-        Enter the Command Window ↓
-      </button>
+        {/* Factual chips */}
+        <div className="mb-16 flex flex-wrap justify-center gap-4">
+          {CHIPS.map((c) => (
+            <div
+              key={c.text}
+              className="micro-mono flex items-center gap-2 rounded border border-hairline bg-navy-deep px-3 py-1.5 text-ink-3"
+            >
+              <span className="material-symbols-outlined text-[14px]">
+                {c.icon}
+              </span>
+              {c.text}
+            </div>
+          ))}
+        </div>
 
-      <p className="mt-8 font-mono text-[10px] uppercase tracking-widest text-slate-600">
-        As of 2026-07-16 · sources: AIS · OpenSanctions · GDELT · market
-      </p>
+        {/* Live micro-readout */}
+        {top && (
+          <div
+            className="mb-8 flex items-center gap-3 rounded border border-hairline bg-panel px-4 py-2"
+            aria-live="polite"
+          >
+            <span className="h-2 w-2 rounded-full bg-elevated" />
+            <span className="micro-mono text-ink">
+              <span className="mr-2 text-ink-3">CORRIDOR RISK NOW:</span>
+              {top.corridor.name}{" "}
+              <span className="ml-1 mr-3 font-bold text-elevated">
+                {(top.p * 100).toFixed(0)}%
+              </span>
+              {hormuz && hormuz !== top && (
+                <>
+                  <span className="mx-2 text-ink-3">|</span>
+                  Hormuz{" "}
+                  <span className="ml-1 font-bold text-secondary">
+                    {(hormuz.p * 100).toFixed(0)}%
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+        )}
 
-      <div
-        aria-hidden="true"
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce text-slate-600 motion-reduce:animate-none"
-      >
-        ↓
-      </div>
+        {/* Primary CTA */}
+        <button
+          onClick={onEnter}
+          className="label-caps flex items-center gap-2 rounded bg-gold px-6 py-3 text-navy transition-colors hover:bg-gold-hover focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 focus:ring-offset-navy"
+        >
+          Enter the Command Window
+          <span className="material-symbols-outlined text-[16px]">
+            arrow_downward
+          </span>
+        </button>
+      </main>
+
+      {/* Dateline footer */}
+      <footer className="relative z-10 mt-auto w-full border-t border-hairline bg-navy-deep/80 px-6 py-4 backdrop-blur-sm">
+        <div className="micro-mono mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-2 text-ink-3 md:flex-row">
+          <div>AS OF 2026-07-16</div>
+          <div className="flex items-center gap-2">
+            SOURCES: <span className="text-ink-2">AIS</span>
+            <span className="text-ink-3">·</span>{" "}
+            <span className="text-ink-2">OPENSANCTIONS</span>
+            <span className="text-ink-3">·</span>{" "}
+            <span className="text-ink-2">GDELT</span>
+            <span className="text-ink-3">·</span>{" "}
+            <span className="text-ink-2">MARKET</span>
+          </div>
+        </div>
+      </footer>
     </section>
   );
 }

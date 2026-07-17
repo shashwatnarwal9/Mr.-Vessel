@@ -17,9 +17,12 @@ WS_URL = "wss://stream.aisstream.io/v0/stream"
 # theater per spec (M16): India, Red Sea/Bab-el-Mandeb/Suez, East Med
 # format verified live: [[lat_min, lon_min], [lat_max, lon_max]]
 BBOXES = [
-    [[6, 66], [37, 98]],  # India
+    [[6, 66], [37, 98]],  # India + approaches
     [[12, 32], [31, 44]],  # Red Sea / Suez
     [[31, 32], [37, 36]],  # East Med
+    [[22, 46], [31, 60]],  # Persian Gulf load ports (Ras Tanura, Basra, Kharg)
+    [[41, 27], [47, 42]],  # Black Sea (Novorossiysk)
+    [[2, 4], [8, 10]],  # Gulf of Guinea (Bonny)
 ]
 
 
@@ -79,13 +82,13 @@ class AisstreamShips:
                             )
                         elif msg.get("MessageType") == "ShipStaticData":
                             s = msg["Message"]["ShipStaticData"]
-                            apply(
-                                mmsi,
-                                {
-                                    "type": _ship_type(s.get("Type") or 0),
-                                    "dest": (s.get("Destination") or "").strip()
-                                    or "—",
-                                },
-                            )
+                            update = {
+                                "type": _ship_type(s.get("Type") or 0),
+                                "dest": (s.get("Destination") or "").strip()
+                                or "—",
+                            }
+                            if s.get("ImoNumber"):
+                                update["imo"] = s["ImoNumber"]  # sanctions join key
+                            apply(mmsi, update)
             except Exception:
                 await asyncio.sleep(5)  # reconnect backoff

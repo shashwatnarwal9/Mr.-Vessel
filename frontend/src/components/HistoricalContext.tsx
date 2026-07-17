@@ -21,9 +21,9 @@ async function loadCorpus(): Promise<Episode[]> {
 }
 
 const PLACE_STYLE = {
-  inside: "bg-emerald-500/20 text-emerald-200",
-  above: "bg-amber-500/20 text-amber-200",
-  below: "bg-cyan-500/20 text-cyan-200",
+  inside: "bg-good/20 text-good-text",
+  above: "bg-elevated/20 text-elevated",
+  below: "bg-bright text-ink-2",
 } as const;
 const PLACE_LABEL = {
   inside: "inside the historical band",
@@ -113,38 +113,61 @@ export default function HistoricalContext({
   const place = rangePlacement(crudePct, analogs);
 
   return (
-    <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-md">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">
-          Historical context
-          <Why
-            tag="derived"
-            formula="top-3 cosine match over normalized [hormuz, redsea, supply-cut, Δcrude, duration] signatures vs 28 real episodes (+ bge-m3 semantic blend when the backend is live); narration uses ONLY retrieved facts — any unsourced number discards it"
-            sources={[]}
-          />
-        </h3>
-        <span className={`rounded px-2 py-0.5 text-[11px] ${PLACE_STYLE[place]}`}>
+    <div className="flex flex-1 flex-col rounded-lg border border-hairline bg-panel p-4">
+      <header className="mb-4 flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1">
+          <span className="material-symbols-outlined text-[18px] text-ink-3">
+            history
+          </span>
+          <h2 className="label-caps text-ink-3">
+            HISTORICAL ANALOGS
+            <Why
+              tag="derived"
+              formula="top-3 cosine match over normalized [hormuz, redsea, supply-cut, Δcrude, duration] signatures vs 28 real episodes (+ bge-m3 semantic blend when the backend is live); narration uses ONLY retrieved facts — any unsourced number discards it"
+              sources={[]}
+            />
+          </h2>
+        </div>
+        <span className={`label-caps rounded px-2 py-0.5 text-[9px] ${PLACE_STYLE[place]}`}>
           {PLACE_LABEL[place]}
         </span>
-      </div>
-      <p className="text-xs leading-relaxed text-slate-200">{narrative}</p>
-      <p className="mt-1 text-[10px] text-slate-500">
+      </header>
+      <p className="body-md leading-relaxed text-ink-2">{narrative}</p>
+      <p className="micro-mono mt-1 text-ink-3">
         narrative: {narrSource} · every claim traces to a source below
       </p>
-      <ul className="mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-2">
+      <ul className="mt-2 flex flex-1 flex-col gap-2">
         {analogs.map(({ episode, score }) => (
-          <li key={episode.id} className="text-[11px] leading-snug text-slate-400">
-            <a
-              href={episode.source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyan-300 underline decoration-cyan-300/40 hover:text-cyan-200"
-            >
-              {episode.name} ({episode.year})
-            </a>{" "}
-            — crude {episode.crude_move_pct > 0 ? "+" : ""}
-            {episode.crude_move_pct}% · {episode.outcome}{" "}
-            <span className="text-slate-600">({(score * 100).toFixed(0)}% match · {episode.source.name})</span>
+          <li
+            key={episode.id}
+            className="rounded border border-hairline bg-navy-deep p-2"
+          >
+            <div className="mb-1 flex items-center justify-between">
+              <a
+                href={episode.source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="body-md text-ink underline decoration-secondary/40 hover:text-gold-hover"
+              >
+                {episode.name} ({episode.year})
+              </a>
+              <span
+                className={`micro-mono tabular-nums ${
+                  episode.crude_move_pct >= 25
+                    ? "text-critical"
+                    : episode.crude_move_pct > 0
+                      ? "text-elevated"
+                      : "text-good-text"
+                }`}
+              >
+                crude {episode.crude_move_pct > 0 ? "+" : ""}
+                {episode.crude_move_pct}%
+              </span>
+            </div>
+            <p className="micro-mono text-ink-3">
+              {episode.outcome} ({(score * 100).toFixed(0)}% match ·{" "}
+              {episode.source.name})
+            </p>
           </li>
         ))}
       </ul>

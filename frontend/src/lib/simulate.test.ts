@@ -98,6 +98,19 @@ describe("time-stepped simulate", () => {
     expect(t.inventory.at(-1)).toBeCloseTo(SIM.inventoryDaysCover);
   });
 
+  it("v7 override replaces σ-shortfall but keeps the price channel", () => {
+    const base = simulate({ disruptions: { hormuz: 0.5 } });
+    const overridden = simulate({
+      disruptions: { hormuz: 0.5 },
+      physicalShortfallOverride: 0, // mix fully insulated from the closure
+    });
+    // physical channel gone → run rate holds
+    expect(overridden.run_rate.every((v) => v === 1)).toBe(true);
+    expect(Math.min(...base.run_rate)).toBeLessThan(1);
+    // world price channel identical (crude does not care about India's mix)
+    expect(overridden.crude[89]).toBeCloseTo(base.crude[89], 6);
+  });
+
   it("legacy sigma input still maps to hormuz", () => {
     const a = simulate({ sigma: 0.5 });
     const b = simulate({ disruptions: { hormuz: 0.5 } });

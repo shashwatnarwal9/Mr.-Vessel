@@ -40,12 +40,13 @@ describe("supplier risk (RA3) — IMMUTABLE checks", () => {
   });
 
   it("chained corridors compound: two crossings beat either alone", () => {
+    const stub = { reroutable: 0, spare_capacity_bbl_d: 0 };
     const both = supplierRisk(
-      { id: "x", name: "x", coords: [0, 0], import_share: 1, sigma_k: 0, d: { suez: 1, babmandeb: 1 } },
+      { id: "x", name: "x", coords: [0, 0], import_share: 1, sigma_k: 0, d: { suez: 1, babmandeb: 1 }, ...stub },
       corridorP,
     );
     const suezOnly = supplierRisk(
-      { id: "x", name: "x", coords: [0, 0], import_share: 1, sigma_k: 0, d: { suez: 1 } },
+      { id: "x", name: "x", coords: [0, 0], import_share: 1, sigma_k: 0, d: { suez: 1 }, ...stub },
       corridorP,
     );
     expect(both).toBeGreaterThan(suezOnly);

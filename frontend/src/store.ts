@@ -1,6 +1,10 @@
 import { create } from "zustand";
 
-export type Tab = "Command Map" | "Simulation Dashboard" | "Past Simulations";
+export type Tab =
+  | "Command Map"
+  | "Simulation Dashboard"
+  | "Ship Simulator"
+  | "Past Simulations";
 
 export type EffectKind = "closure" | "sanction" | "reroute" | "delay";
 export type ShipEffect = {
@@ -36,6 +40,8 @@ export type ShipProps = {
   course: number;
   speed: number;
   dest: string;
+  imo?: number; // live AIS static data (sanctions join key)
+  sanction?: "sanctioned" | "shadow_fleet"; // annotated client-side
 };
 
 export type ShipFeature = {
@@ -63,6 +69,8 @@ type State = {
   ships: ShipsFC | null;
   shipsMode: "live" | "baked";
   setShips: (fc: ShipsFC, mode: "live" | "baked") => void;
+  screening: { screened: number; matched: number } | null; // coverage honesty
+  setScreening: (s: { screened: number; matched: number }) => void;
   contextLayers: { israel: boolean; egypt: boolean };
   toggleContextLayer: (c: "israel" | "egypt") => void;
   tab: Tab;
@@ -81,6 +89,10 @@ type State = {
   setActiveZone: (z: "hormuz" | "redsea" | null) => void;
   activeScenario: "hormuz" | "redsea" | "opec"; // what the map σ slider drives
   setActiveScenario: (s: "hormuz" | "redsea" | "opec") => void;
+  selectedCorridor: string | null; // M6e click-through (panel row or map)
+  setSelectedCorridor: (id: string | null) => void;
+  highlightMmsi: number | null; // search hit: flash the ship green briefly
+  setHighlightMmsi: (m: number | null) => void;
   narrative: string | null; // preset scenario blurb
   setNarrative: (n: string | null) => void;
   plainMode: boolean; // M7 story layer: plain-English labels
@@ -103,7 +115,11 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({
       piFused,
       confidence,
-      ...(s.piMode === "fused" ? { pi: piFused } : {}),
+      // news/market/ship fusion auto-drives the panel until the user takes
+      // manual control of the slider (any drag switches to what-if mode)
+      ...(s.piMode === "fused" || (s.piMode === "manual" && s.pi === 0)
+        ? { pi: piFused, piMode: "fused" as const }
+        : {}),
     })),
   setPiMode: (piMode) =>
     set((s) => ({
@@ -113,6 +129,8 @@ export const useStore = create<State>((set, get) => ({
   ships: null,
   shipsMode: "baked",
   setShips: (fc, mode) => set({ ships: fc, shipsMode: mode }),
+  screening: null,
+  setScreening: (screening) => set({ screening }),
   contextLayers: { israel: true, egypt: true },
   toggleContextLayer: (c) =>
     set((s) => ({
@@ -156,6 +174,10 @@ export const useStore = create<State>((set, get) => ({
   setActiveZone: (activeZone) => set({ activeZone }),
   activeScenario: "hormuz",
   setActiveScenario: (activeScenario) => set({ activeScenario }),
+  selectedCorridor: null,
+  setSelectedCorridor: (selectedCorridor) => set({ selectedCorridor }),
+  highlightMmsi: null,
+  setHighlightMmsi: (highlightMmsi) => set({ highlightMmsi }),
   narrative: null,
   setNarrative: (narrative) => set({ narrative }),
   plainMode: true, // judges first: plain by default, expert opt-in

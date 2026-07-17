@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import FILE from "../../public/sanctions_vessels.json";
 import {
+  annotateFleet,
   buildIndex,
   listingLabels,
   screenVessel,
@@ -54,6 +55,21 @@ describe("screening (imo → mmsi → name)", () => {
   it("shadow fleet tier labels correctly", () => {
     const shadow = file.vessels.find((v) => v.tier === "shadow_fleet")!;
     expect(listingLabels(shadow)).toContain("Shadow fleet");
+  });
+
+  it("annotateFleet marks matched vessels red-tier with honest coverage (M6c)", () => {
+    const real = file.vessels.find((v) => v.imo && v.tier === "shadow_fleet")!;
+    const fleet: {
+      properties: { mmsi: number; name: string; imo?: string; sanction?: string };
+    }[] = [
+      { properties: { mmsi: 419000101, name: "MT DESH GLORY" } }, // synthetic → clean
+      { properties: { mmsi: 999, name: "X", imo: real.imo } }, // real listed IMO
+    ];
+    const { features, screened, matched } = annotateFleet(fleet, idx);
+    expect(screened).toBe(2);
+    expect(matched).toBe(1);
+    expect(features[0].properties.sanction).toBeUndefined();
+    expect(features[1].properties.sanction).toBe("shadow_fleet");
   });
 
   it("FoC flags marked; severity dedupe never downgrades (fixture)", () => {

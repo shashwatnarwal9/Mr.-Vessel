@@ -76,6 +76,39 @@ export function buildIndex(file: SanctionsFile) {
   return { byImo, byMmsi, byName };
 }
 
+/** M6c: annotate a whole fleet — adds props.sanction tier to matched
+ *  vessels and returns honest coverage counts. Pure (testable). */
+export function annotateFleet<
+  F extends {
+    properties: { mmsi?: number | string; name?: string; imo?: number | string; sanction?: string };
+  },
+>(
+  features: F[],
+  idx: ReturnType<typeof buildIndex>,
+): { features: F[]; screened: number; matched: number } {
+  let matched = 0;
+  const out = features.map((f) => {
+    const r = screenVessel(idx, {
+      imo: f.properties.imo ? String(f.properties.imo) : undefined,
+      mmsi: f.properties.mmsi,
+      name: f.properties.name,
+    });
+    if (r.status === "match") {
+      matched++;
+      return {
+        ...f,
+        properties: { ...f.properties, sanction: r.vessel.tier },
+      };
+    }
+    if (f.properties.sanction) {
+      const { sanction: _drop, ...rest } = f.properties;
+      return { ...f, properties: rest } as F;
+    }
+    return f;
+  });
+  return { features: out, screened: features.length, matched };
+}
+
 // browser-side lazy loader (1.2MB file: fetched once, never bundled)
 let _idx: ReturnType<typeof buildIndex> | null = null;
 let _meta: SanctionsFile["meta"] | null = null;

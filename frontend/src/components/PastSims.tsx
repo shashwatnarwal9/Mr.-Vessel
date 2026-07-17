@@ -44,140 +44,198 @@ export default function PastSims() {
 
   return (
     <div className="h-full overflow-y-auto p-6">
-      <div className="mx-auto flex max-w-4xl flex-col gap-4">
-        <PageIntro
-          page="pastsims"
-          intro="Every simulation you save lands here — reopen it, reload it into the dashboard, or compare two runs side by side."
-          hint="Tick 'compare' on two runs to overlay their petrol-price and growth curves."
-        />
+      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="headline-lg text-ink">Past Simulations</h1>
+          <PageIntro
+            page="pastsims"
+            intro="Every simulation you save lands here — reopen it, reload it into the dashboard, or compare two runs side by side."
+            hint="Tick 'compare' on two runs to overlay their petrol-price and growth curves."
+          />
+        </div>
 
         {runs.length === 0 && (
-          <div className="rounded-xl border border-white/15 bg-white/10 p-8 text-center text-sm text-slate-400 backdrop-blur-md">
+          <div className="body-md rounded-lg border border-hairline bg-panel p-8 text-center text-ink-3">
             No saved simulations yet — run one on the Simulation Dashboard and
-            press 💾 Save.
+            press Save.
           </div>
         )}
 
-        <ul className="grid gap-3 md:grid-cols-2">
-          {runs.map((r) => (
-            <li
-              key={r.id}
-              className={`rounded-xl border p-4 backdrop-blur-md ${openId === r.id ? "border-cyan-400/40 bg-cyan-500/10" : "border-white/15 bg-white/10"}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-white">{r.name}</h3>
-                  <p className="text-[11px] text-slate-400">
-                    {new Date(r.ts).toLocaleString()} · {summary(r)}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* cards column */}
+          <ul className="flex flex-col gap-4">
+            {runs.map((r) => {
+              const active = Object.values(r.disruptions).some((v) => (v ?? 0) > 0);
+              const selected = openId === r.id;
+              return (
+                <li
+                  key={r.id}
+                  className={`group flex flex-col gap-2 rounded-lg bg-panel p-4 transition-colors ${
+                    selected
+                      ? "border-2 border-secondary"
+                      : "border border-hairline hover:border-secondary"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="headline-sm flex items-center gap-2 text-ink">
+                        <span
+                          className={`text-[12px] ${active ? "text-elevated" : "text-good"}`}
+                        >
+                          ●
+                        </span>
+                        {r.name}
+                      </h3>
+                      <div className="micro-mono mt-1 text-ink-3">
+                        {new Date(r.ts).toLocaleString()} · {summary(r)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex cursor-pointer items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={compare.includes(r.id)}
+                          onChange={() => toggleCompare(r.id)}
+                          className="h-4 w-4 rounded-sm border-hairline bg-navy-deep accent-[#ffb956]"
+                        />
+                        <span className="label-caps text-ink-3 transition-colors group-hover:text-ink">
+                          Compare
+                        </span>
+                      </label>
+                      <button
+                        onClick={() => {
+                          deleteRun(r.id);
+                          bump();
+                        }}
+                        aria-label={`Delete ${r.name}`}
+                        className="rounded px-1.5 text-ink-3 hover:text-ink"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <p
+                    className={`body-md mt-1 ${active ? "text-elevated" : "text-ink-2"}`}
+                  >
+                    {r.headline}
                   </p>
+                  <div
+                    className={`mt-2 flex gap-2 transition-opacity ${
+                      selected ? "" : "opacity-50 group-hover:opacity-100"
+                    }`}
+                  >
+                    <button
+                      onClick={() => setOpenId(selected ? null : r.id)}
+                      className="label-caps flex items-center gap-1 rounded border border-hairline bg-transparent px-2 py-1 text-ink-3 transition-colors hover:border-ink-3 hover:text-ink"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        bar_chart
+                      </span>
+                      {selected ? "Hide Graphs" : "View Graphs"}
+                    </button>
+                    <button
+                      onClick={() => reload(r)}
+                      className="label-caps flex items-center gap-1 rounded border border-hairline bg-transparent px-2 py-1 text-ink-3 transition-colors hover:border-ink-3 hover:text-ink"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        refresh
+                      </span>
+                      Reload
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* analysis / compare column */}
+          <div className="flex flex-col gap-4">
+            {open && (
+              <div className="flex flex-col gap-2 rounded-lg border border-hairline bg-panel p-4">
+                <h4 className="label-caps mb-1 text-ink-3">
+                  Single Run Analysis: {open.name}
+                </h4>
+                <div className="relative overflow-hidden rounded border border-hairline bg-dim p-2">
+                  {open.fanFuel.length > 0 ? (
+                    <FanChart
+                      title="Petrol price (₹/L)"
+                      bands={open.fanFuel}
+                      color={BLUE}
+                      format={(v) => `₹${v.toFixed(1)}`}
+                      width={440}
+                      height={130}
+                    />
+                  ) : (
+                    <TrajChart
+                      title="Petrol price (₹/L)"
+                      series={[{ name: open.name, color: BLUE, values: open.traj.fuel }]}
+                      format={(v) => `₹${v.toFixed(1)}`}
+                      width={440}
+                      height={130}
+                    />
+                  )}
                 </div>
-                <button
-                  onClick={() => {
-                    deleteRun(r.id);
-                    bump();
-                  }}
-                  aria-label={`Delete ${r.name}`}
-                  className="rounded px-1.5 text-slate-500 hover:bg-white/10 hover:text-white"
-                >
-                  ×
-                </button>
+                <div className="relative overflow-hidden rounded border border-hairline bg-dim p-2">
+                  {open.fanGdp.length > 0 ? (
+                    <FanChart
+                      title="Growth impact (pp)"
+                      bands={open.fanGdp}
+                      color={RED}
+                      format={(v) => v.toFixed(2)}
+                      width={440}
+                      height={130}
+                    />
+                  ) : (
+                    <TrajChart
+                      title="Growth impact (pp)"
+                      series={[{ name: open.name, color: RED, values: open.traj.gdp }]}
+                      format={(v) => v.toFixed(2)}
+                      width={440}
+                      height={130}
+                    />
+                  )}
+                </div>
               </div>
-              <p className="mt-2 text-xs text-amber-100/90">{r.headline}</p>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                <button
-                  onClick={() => setOpenId(openId === r.id ? null : r.id)}
-                  className="rounded border border-white/15 bg-white/5 px-2 py-1 text-slate-200 hover:bg-white/10"
-                >
-                  {openId === r.id ? "hide graphs" : "view graphs"}
-                </button>
-                <button
-                  onClick={() => reload(r)}
-                  className="rounded border border-white/15 bg-white/5 px-2 py-1 text-slate-200 hover:bg-white/10"
-                >
-                  reload into dashboard
-                </button>
-                <label className="flex items-center gap-1 rounded border border-white/15 bg-white/5 px-2 py-1 text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={compare.includes(r.id)}
-                    onChange={() => toggleCompare(r.id)}
-                  />
-                  compare
-                </label>
+            )}
+
+            {compared.length === 2 && (
+              <div className="relative overflow-hidden rounded-lg border border-secondary bg-panel p-4">
+                <div className="pointer-events-none absolute inset-0 bg-gold-wash" />
+                <div className="relative z-10 flex flex-col gap-2">
+                  <h4 className="label-caps mb-2 border-b border-hairline pb-1 text-secondary">
+                    Compare: {compared[0].name} vs {compared[1].name}
+                  </h4>
+                  <div className="rounded border border-hairline bg-dim p-2">
+                    <TrajChart
+                      title="Petrol price (₹/L)"
+                      series={compared.map((r, i): TrajSeries => ({
+                        name: r.name,
+                        color: i === 0 ? BLUE : AQUA,
+                        values: r.traj.fuel,
+                      }))}
+                      format={(v) => `₹${v.toFixed(1)}`}
+                      width={440}
+                      height={180}
+                    />
+                  </div>
+                  <div className="rounded border border-hairline bg-dim p-2">
+                    <TrajChart
+                      title="Growth impact (pp)"
+                      series={compared.map((r, i): TrajSeries => ({
+                        name: r.name,
+                        color: i === 0 ? BLUE : AQUA,
+                        values: r.traj.gdp,
+                      }))}
+                      format={(v) => v.toFixed(2)}
+                      width={440}
+                      height={180}
+                    />
+                  </div>
+                </div>
               </div>
-            </li>
-          ))}
-        </ul>
-
-        {open && (
-          <div className="flex flex-col gap-4 rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-md">
-            <h3 className="text-sm font-semibold text-white">{open.name}</h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {open.fanFuel.length > 0 ? (
-                <FanChart
-                  title="Petrol price (₹/L)"
-                  bands={open.fanFuel}
-                  color={BLUE}
-                  format={(v) => `₹${v.toFixed(1)}`}
-                  width={340}
-                  height={150}
-                />
-              ) : (
-                <TrajChart
-                  title="Petrol price (₹/L)"
-                  series={[{ name: open.name, color: BLUE, values: open.traj.fuel }]}
-                  format={(v) => `₹${v.toFixed(1)}`}
-                  width={340}
-                  height={150}
-                />
-              )}
-              {open.fanGdp.length > 0 ? (
-                <FanChart
-                  title="Growth impact (pp)"
-                  bands={open.fanGdp}
-                  color={RED}
-                  format={(v) => v.toFixed(2)}
-                  width={340}
-                  height={150}
-                />
-              ) : (
-                <TrajChart
-                  title="Growth impact (pp)"
-                  series={[{ name: open.name, color: RED, values: open.traj.gdp }]}
-                  format={(v) => v.toFixed(2)}
-                  width={340}
-                  height={150}
-                />
-              )}
-            </div>
+            )}
           </div>
-        )}
-
-        {compared.length === 2 && (
-          <div className="flex flex-col gap-4 rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-4 backdrop-blur-md">
-            <h3 className="text-sm font-semibold text-white">
-              Compare: {compared[0].name} vs {compared[1].name}
-            </h3>
-            <TrajChart
-              title="Petrol price (₹/L)"
-              series={compared.map((r, i): TrajSeries => ({
-                name: r.name,
-                color: i === 0 ? BLUE : AQUA,
-                values: r.traj.fuel,
-              }))}
-              format={(v) => `₹${v.toFixed(1)}`}
-            />
-            <TrajChart
-              title="Growth impact (pp)"
-              series={compared.map((r, i): TrajSeries => ({
-                name: r.name,
-                color: i === 0 ? BLUE : AQUA,
-                values: r.traj.gdp,
-              }))}
-              format={(v) => v.toFixed(2)}
-            />
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

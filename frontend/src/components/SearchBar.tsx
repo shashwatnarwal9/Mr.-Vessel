@@ -32,6 +32,8 @@ async function loadPlants(): Promise<PlantFeature[]> {
   return PLANTS;
 }
 
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+
 export default function SearchBar() {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
@@ -91,6 +93,13 @@ export default function SearchBar() {
     st.setTab("Command Map");
     if (h.kind === "ship") {
       st.setSelectedShip({ ...h.ship, lon: h.lonlat[0], lat: h.lonlat[1] });
+      // flash the found ship green for 5s, then back to its normal blue
+      st.setHighlightMmsi(h.ship.mmsi);
+      if (flashTimer) clearTimeout(flashTimer);
+      flashTimer = setTimeout(
+        () => useStore.getState().setHighlightMmsi(null),
+        5000,
+      );
     } else {
       st.setSelectedPlant(h.plant);
     }
@@ -99,7 +108,10 @@ export default function SearchBar() {
   };
 
   return (
-    <div ref={boxRef} className="relative ml-auto mr-3 w-64">
+    <div ref={boxRef} className="relative hidden lg:block">
+      <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-ink-3">
+        search
+      </span>
       <input
         value={q}
         onChange={(e) => {
@@ -110,20 +122,23 @@ export default function SearchBar() {
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search ships / plants…"
         aria-label="Search ships and plants"
-        className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400/50 focus:outline-none"
+        className="body-md h-8 w-64 rounded border border-hairline bg-navy-deep py-1 pl-8 pr-2 text-ink transition-colors placeholder:text-ink-3 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary"
       />
       {open && hits.length > 0 && (
-        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-lg border border-white/15 bg-[#101624]/95 shadow-2xl backdrop-blur-md">
+        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded border border-hairline bg-navy-deep shadow-2xl">
           {hits.map((h, i) => (
             <li key={i}>
               <button
                 onMouseDown={() => select(h)}
-                className="flex w-full flex-col px-3 py-1.5 text-left hover:bg-white/10"
+                className="flex w-full flex-col px-3 py-1.5 text-left transition-colors hover:bg-gold-wash"
               >
-                <span className="text-sm text-slate-100">
-                  {h.kind === "ship" ? "🚢" : "⚡"} {h.label}
+                <span className="body-md flex items-center gap-2 text-ink">
+                  <span className="material-symbols-outlined text-[14px] text-ink-3">
+                    {h.kind === "ship" ? "directions_boat" : "bolt"}
+                  </span>
+                  {h.label}
                 </span>
-                <span className="text-[11px] text-slate-400">{h.sub}</span>
+                <span className="micro-mono text-ink-3">{h.sub}</span>
               </button>
             </li>
           ))}
