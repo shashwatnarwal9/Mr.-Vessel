@@ -25,6 +25,21 @@ services:
         sync: false
       - key: GUARDIAN_API_KEY
         sync: false
+      # War Cabinet: one NVIDIA model per minister. Model ids are non-secret;
+      # the per-model keys are set in the dashboard (sync:false). DM_MODEL defaults
+      # to qwen in code, but pinning all three here keeps the blueprint explicit.
+      - key: FM_MODEL
+        value: nvidia/nvidia-nemotron-nano-9b-v2
+      - key: DM_MODEL
+        value: qwen/qwen3.5-122b-a10b
+      - key: PM_MODEL
+        value: openai/gpt-oss-120b
+      - key: FM_API_KEY
+        sync: false
+      - key: DM_API_KEY
+        sync: false
+      - key: PM_API_KEY
+        sync: false
 
   - type: web
     name: mr-vessel-web

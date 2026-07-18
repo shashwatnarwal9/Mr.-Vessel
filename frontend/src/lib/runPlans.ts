@@ -30,6 +30,15 @@ export type PolicyLevers = {
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const DRAW_CAP_BASE = 0.7; // coefficients.draw_cap_share
 
+// Lever EFFECTIVENESS caps: a lever at 1.0 is full political effort, NOT a
+// magic reset. Diplomacy can't reopen a mined strait or reverse an OPEC quota
+// inside the 90-day horizon — without these caps the PM trivially drives every
+// shock to zero (petrol +₹0.0) and the graphs go flat.
+// ponytail: first-order effectiveness caps, tune if a channel is re-calibrated.
+const DEESC_MAX = 0.4; // diplomacy trims the Hormuz shock ≤40% (+ decay over time)
+const OPEC_MAX = 0.5; // India's leverage over an OPEC+ quota decision ≤50%
+const ESCORT_MAX = 0.6; // convoys cut Red Sea reroute losses ≤60% (proxy, not a fleet model)
+
 /** Apply a lever set to the baseline crisis, producing a SimInput. */
 export function leversToInput(
   base: Disruptions,
@@ -43,15 +52,16 @@ export function leversToInput(
     redsea: base.redsea ?? 0,
     opec: base.opec ?? 0,
   };
-  let m = mode;
+  // de-escalation LOWERS the shock's severity (capped) but does NOT flip the
+  // scenario to decay — a mined strait doesn't fade to zero by the horizon end
+  // just because diplomacy is underway; that collapsed every plan to ~₹0.
+  const m = mode;
   if (levers.opec_negotiation)
-    d.opec = clamp01((d.opec ?? 0) * (1 - levers.opec_negotiation));
-  if (levers.deescalation) {
-    d.hormuz = clamp01((d.hormuz ?? 0) * (1 - levers.deescalation));
-    m = "decay";
-  }
+    d.opec = clamp01((d.opec ?? 0) * (1 - OPEC_MAX * levers.opec_negotiation));
+  if (levers.deescalation)
+    d.hormuz = clamp01((d.hormuz ?? 0) * (1 - DEESC_MAX * levers.deescalation));
   if (levers.naval_escort)
-    d.redsea = clamp01((d.redsea ?? 0) * (1 - levers.naval_escort));
+    d.redsea = clamp01((d.redsea ?? 0) * (1 - ESCORT_MAX * levers.naval_escort));
   for (const e of levers.escalation ?? [])
     d[e.channel] = clamp01((d[e.channel] ?? 0) + e.delta);
 
