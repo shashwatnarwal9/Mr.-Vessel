@@ -2,7 +2,7 @@
 
 **See how a shock in the Gulf reaches India's pump price.**
 
-Mr. Vessel is a geopolitical energy-disruption simulator for India. Pick a crisis — a blocked Strait of Hormuz, a sanctioned tanker, an OPEC+ production cut — and watch the cascade unfold over 90 days: crude price → import cost → petrol price at a Delhi pump → power-grid stress → GDP growth.
+Mr. Vessel is a geopolitical energy-disruption simulator for India. Pick a crisis — a blocked Strait of Hormuz, a sanctioned tanker, an OPEC+ production cut — and watch the cascade unfold over 90 days: crude price → import cost → petrol price at a Delhi pump → power-grid stress → GDP growth. Or convene a **War Cabinet**: describe a crisis in plain English and three AI ministers debate the response while the engine scores every option.
 
 Everything runs in the browser on a live 3D globe, backed by real data: **1,589 real Indian power plants**, **5,388 vessels screened against OpenSanctions**, live AIS ship positions, and a price model calibrated on the 2022 oil shock.
 
@@ -25,7 +25,7 @@ Everything runs in the browser on a live 3D globe, backed by real data: **1,589 
 
 ## What you can do
 
-The app is one page with four screens, reached from the top navigation:
+The app is one page with five screens, reached from the top navigation:
 
 ### 🌍 Command Map
 A live 3D globe of India's energy system — every power plant (colored by fuel), oil tankers on their actual AIS positions, and the five chokepoints India's crude flows through (Hormuz, Bab el-Mandeb, Suez, Malacca, Cape of Good Hope).
@@ -34,6 +34,15 @@ A live 3D globe of India's energy system — every power plant (colored by fuel)
 - **"If Hormuz is blocked…" slider** — drag it and watch refinery run-rate, Delhi petrol price, electricity at risk, and GDP hit update live.
 - **News rail** — corridor-relevant headlines, each tagged to the chokepoint it affects.
 - **Ship / plant panels** — click anything on the map. Tankers show their cargo estimate, destination, ETA, and a sanctions screening result with the matched list.
+
+### ⚔️ War Cabinet
+Describe a crisis in plain English — *"Iran mines the Strait of Hormuz, the US strikes Houthi sites near Bab-el-Mandeb, OPEC+ cuts 3 Mb/d"* — and three AI ministers deliberate the response.
+
+- A **Foreign Minister** and a **Defence Minister** (two different NVIDIA-hosted models) each read the crisis and stream a point-of-view, then hand up a set of **real policy levers** — re-source imports, negotiate OPEC down, release the strategic reserve, deploy naval escorts, de-escalate, or (last resort) escalate.
+- A **Prime Minister** (a third model) weighs both and issues the **final call** as its own lever set — adopt, blend, reject, or override.
+- All four plans — crisis baseline, each minister's plan, and the PM's decision — are scored by the *same* simulation engine and **overlaid on the four metric charts** (petrol, GDP, refinery utilization, grid stress), plus a decision scorecard showing exactly what the choice was worth in ₹/L and GDP points.
+
+The load-bearing rule: **the models do judgment, the engine does arithmetic.** No AI ever produces a number you see — ministers argue strategy and emit levers; the calibrated engine computes every outcome, under the same anti-hallucination guard as the rest of the app. A free-text prompt is parsed into disruption channels with a speculation gate ("Iran *threatens* to close Hormuz" is a threat, not an event → 0%), so tension can't be mistaken for a shock.
 
 ### 📊 Simulation Dashboard
 Build a full what-if scenario:
@@ -87,6 +96,7 @@ The project's brand is honesty about what it knows. These rules are enforced in 
 | **Ranges, not decimals** | Headlines quote Monte Carlo bands, e.g. "+₹12–19/L". |
 | **Risk answers "of what, by when"** | Every probability is labeled with its 30-day horizon. |
 | **AI narration can't hallucinate numbers** | The GLM-written analysis is checked number-by-number against the model's own facts; a single unverifiable number discards the whole narration and a grounded template is shown instead. |
+| **AI decides, the engine computes** | In the War Cabinet the AI ministers never produce a number on screen — they argue strategy and emit *policy levers*; the calibrated engine scores every plan. Lever effectiveness is capped so diplomacy can't magically zero a mined strait. |
 | **No fake live calls** | Every external API sits behind an interface with a baked-data fallback — the full demo works with **zero API keys and no internet**. |
 
 ---
@@ -109,9 +119,10 @@ flowchart LR
   end
 
   UI -- "WS /ws/ships · SSE /sse/*" --> FUS
-  UI -- "REST" --> Backend
+  UI -- "REST · /scenario/parse · /cabinet/*" --> Backend
   REG --> AIS[aisstream.io]
   REG --> NV[NVIDIA GLM-5.2 + bge-m3]
+  REG --> CAB[War Cabinet trio<br/>FM nemotron · DM qwen · PM gpt-oss]
   REG --> CU[NVIDIA cuOpt]
   REG --> GD[GDELT news]
   REG --> FP[Fuel Price API]
@@ -173,6 +184,16 @@ CUOPT_API_KEY=...        # NVIDIA cuOpt — route-detour cross-check
 FUEL_PRICE_API_KEY=...   # fuel.indianapi.in — live Delhi pump price
 CORS_ORIGINS=http://localhost:5173
 
+# War Cabinet — one NVIDIA-hosted model per minister. Model ids have code defaults;
+# override here if a catalog string differs. Each role can carry its own key (NVIDIA
+# keys are often per-model); any *_API_KEY left blank falls back to NVIDIA_API_KEY.
+FM_MODEL=nvidia/nvidia-nemotron-nano-9b-v2   # Foreign Minister
+DM_MODEL=qwen/qwen3.5-122b-a10b              # Defence Minister
+PM_MODEL=openai/gpt-oss-120b                 # Prime Minister (a distinct model)
+FM_API_KEY=...           # Foreign Minister model key (blank → NVIDIA_API_KEY)
+DM_API_KEY=...           # Defence Minister model key
+PM_API_KEY=...           # Prime Minister model key
+
 # neo4j (only if not using the docker defaults above)
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
@@ -194,7 +215,8 @@ VITE_API_WS=ws://localhost:8000
 | Key | Provider | Powers | Without it |
 |---|---|---|---|
 | `AIS_API_KEY` | [aisstream.io](https://aisstream.io) (free) | Live tanker positions over WebSocket | Baked demo fleet (labeled as such) |
-| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | AI narration (GLM-5.2) + semantic search over the crisis corpus (bge-m3) | Grounded template text |
+| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | AI narration (GLM-5.2) + semantic search over the crisis corpus (bge-m3); War Cabinet fallback | Grounded template text |
+| `FM_API_KEY` · `DM_API_KEY` · `PM_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | War Cabinet ministers (nemotron / qwen / gpt-oss). NVIDIA keys are often per-model — one key each | Blank → falls back to `NVIDIA_API_KEY`; if that's absent too, the cabinet reports unavailable |
 | `CUOPT_API_KEY` | NVIDIA cuOpt managed API | Independent check of ship-detour routing | Local Haversine result stands alone |
 | `FUEL_PRICE_API_KEY` | [fuel.indianapi.in](https://fuel.indianapi.in) | Live Delhi pump price (1-hour cache — free tier is 100 requests) | Baked snapshot price |
 
@@ -214,7 +236,9 @@ The repo ships a [`render.yaml`](render.yaml) Blueprint that stands up both serv
 
 ```bash
 # 1. push, then on Render: New → Blueprint → pick this repo → Apply
-# 2. add the four API keys on mr-vessel-api → Environment (optional; baked fallback without them)
+# 2. add the secret keys on mr-vessel-api → Environment (all optional; baked fallback
+#    without them). Cabinet secrets: FM_API_KEY, DM_API_KEY, PM_API_KEY (model ids are
+#    non-secret and already declared in render.yaml).
 # 3. verify
 curl https://mr-vessel-api.onrender.com/health     # {"status":"ok",...}
 ```
@@ -240,6 +264,9 @@ Notes:
 | `GET /market/pump` · `GET /market/pump/history` | Delhi petrol price, live + accumulated history |
 | `POST /route/solve` | cuOpt shortest-path cost for a day-matrix (used by the Ship Simulator cross-check) |
 | `GET /kg/cascade?chokepoint=…` | Supplier → chokepoint → port → refinery → product → sector cascade graph |
+| `POST /scenario/parse` | War Cabinet: free-text crisis → disruption channels (σ), instant keyword parse with a speculation gate |
+| `POST /cabinet/minister?role=fm\|dm` | War Cabinet: stream a minister's POV + structured policy levers (SSE; per-role model, GLM fallback) |
+| `POST /cabinet/pm` | War Cabinet: stream the Prime Minister's verdict + final levers (runs on its own model) |
 | `GET /rag/analogs` | Nearest historical crisis episodes for a scenario signature |
 | `POST /rag/narrate` | Grounded AI narration of a run (streamed, guard-checked) |
 | `GET /sse/news` · `GET /sse/pi` | Server-sent events: news items, fused disruption-probability updates |
@@ -264,6 +291,8 @@ Mr. Vessel/
 │       ├── fusion.py         # fuses news + ships + market into corridor risk
 │       ├── kg.py             # knowledge graph (Neo4j + Python fallback)
 │       ├── rag.py            # historical-analog retrieval + narration guard
+│       ├── scenario_parse.py # War Cabinet: crisis text → disruption channels (σ)
+│       ├── cabinet.py        # War Cabinet: 3-model minister/PM streaming + policy levers
 │       ├── news_feed.py      # polling loop with fallback absorption
 │       └── vessels.py        # baked fleet + live AIS overlay by MMSI
 └── frontend/
@@ -279,11 +308,13 @@ Mr. Vessel/
         │   ├── simulate.ts   #   90-day trajectory engine
         │   ├── montecarlo.ts #   uncertainty bands
         │   ├── coupled.ts    #   import-mix × shock coupling + mitigation
+        │   ├── runPlans.ts   #   War Cabinet: policy levers → engine plans (baseline/FM/DM/PM)
+        │   ├── warCabinet.ts #   War Cabinet: crisis parse + minister/PM stream orchestration
         │   ├── risk.ts       #   corridor risk from news/ship signals
         │   ├── sanctions.ts  #   vessel screening
         │   ├── routeGraph.ts #   sea-route graph + detour math
         │   └── …
-        ├── components/       # 24 UI components (globe, panels, charts)
+        ├── components/       # UI components (globe, panels, charts, WarCabinet.tsx)
         └── workers/          # Monte Carlo Web Worker
 ```
 
@@ -293,11 +324,16 @@ Mr. Vessel/
 
 ```bash
 cd frontend
-npm test          # 92 unit tests across 15 files (vitest)
+npm test          # unit tests across the model layer (vitest)
 npm run build     # type-check + production build
+
+# War Cabinet backend checks (key-free — no NVIDIA_API_KEY needed):
+cd ../backend
+python -m app.test_scenario_parse   # speculation gate, geo resolver, partial-closure severity
+python -m app.test_cabinet          # policy-lever validation + per-role model fallback
 ```
 
-The tests cover the entire model layer — cascade math, Monte Carlo, sanctions screening, route detours, corridor risk, the 2022 backtest, and the M0 scenario assertions. These checks are treated as immutable: they are never weakened to make a change pass.
+The tests cover the entire model layer — cascade math, Monte Carlo, sanctions screening, route detours, corridor risk, the 2022 backtest, the M0 scenario assertions, and the War Cabinet (crisis parsing, the lever→outcome mapping, and the rule that full diplomatic mitigation *reduces but never zeroes* a physical shock). These checks are treated as immutable: they are never weakened to make a change pass.
 
 ---
 
