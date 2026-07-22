@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import CORPUS from "../../public/history_corpus.json";
 import {
   cosine,
+  HISTORICAL_SHOCKS,
   placement,
   rangePlacement,
   scenarioSignature,
@@ -14,6 +15,12 @@ import { BASE } from "./cascade";
 const corpus = CORPUS as Episode[];
 
 describe("history corpus integrity (provenance rule)", () => {
+  it("the count the landing page advertises matches the real corpus", () => {
+    // the landing quotes this number without bundling the corpus — if an
+    // episode is ever added or removed, this fails instead of the UI lying
+    expect(HISTORICAL_SHOCKS).toBe(corpus.length);
+  });
+
   it("every episode is complete, cited, and sane", () => {
     expect(corpus.length).toBeGreaterThanOrEqual(25);
     for (const e of corpus) {

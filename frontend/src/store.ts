@@ -1,11 +1,8 @@
 import { create } from "zustand";
 
-export type Tab =
-  | "Command Map"
-  | "War Cabinet"
-  | "Simulation Dashboard"
-  | "Ship Simulator"
-  | "Past Simulations";
+// The dashboard, ship simulator and war cabinet are no longer top-level
+// pages — they live inside FinOcean Maximus as cards / sub-pages.
+export type Tab = "Command Map" | "FinOcean Maximus" | "Past Simulations";
 
 export type EffectKind = "closure" | "sanction" | "reroute" | "delay";
 export type ShipEffect = {
@@ -24,6 +21,20 @@ export type Draft = {
   redsea: number; // hormuz value lives in `pi` (shared with the map slider)
   opec: number;
   ships: SimShip[];
+};
+
+// FinOcean Maximus — "Load = commit": a card's values only enter the shared
+// world state when the user presses LOAD on its sub-page. Editing a sub-page
+// WITHOUT loading must never mutate what a run reads; that separation is the
+// whole point of the pattern.
+export type CommittedDashboard = {
+  mix: Record<string, number>; // supplier id → share (already normalized on load)
+  disruptions: { hormuz: number; redsea: number; opec: number };
+};
+
+export type WorldState = {
+  dashboard: CommittedDashboard | null;
+  ships: SimShip[] | null;
 };
 
 export type PlantProps = {
@@ -84,6 +95,10 @@ type State = {
   setShips: (fc: ShipsFC, mode: "live" | "baked") => void;
   screening: { screened: number; matched: number } | null; // coverage honesty
   setScreening: (s: { screened: number; matched: number }) => void;
+  // live headline feed, lifted here so corridor risk can derive its news
+  // signal from the same items the Signals rail shows
+  newsItems: { tag: string; severity: number }[];
+  setNewsItems: (n: { tag: string; severity: number }[]) => void;
   contextLayers: { israel: boolean; egypt: boolean };
   toggleContextLayer: (c: "israel" | "egypt") => void;
   tab: Tab;
@@ -118,10 +133,16 @@ type State = {
       points: { name: string; lonlat: [number, number] }[];
     } | null,
   ) => void;
+  // FinOcean world state (committed via LOAD; a run reads ONLY this)
+  world: WorldState;
+  commitDashboard: (d: CommittedDashboard) => void;
+  commitShips: (ships: SimShip[]) => void;
+  clearWorldCard: (which: "dashboard" | "ships") => void;
+  /** Past Sims: re-commit a whole saved world and sync the draft/sliders so
+   * the loaded scenario is ready to RUN and to edit. */
+  loadRunWorld: (w: WorldState) => void;
   narrative: string | null; // preset scenario blurb
   setNarrative: (n: string | null) => void;
-  plainMode: boolean; // M7 story layer: plain-English labels
-  setPlainMode: (v: boolean) => void;
 };
 
 const FLASH_MS = 5000;
@@ -146,7 +167,11 @@ export const useStore = create<State>((set, get) => ({
   },
   pi: 0,
   setPi: (pi) => set({ pi, piMode: "manual" }),
-  piMode: "manual",
+  // default to the LIVE EST. (fused) reading — the panel should open on what
+  // the feeds actually say; dragging the slider hands control back to WHAT-IF.
+  // Until the first fused value lands, the LIVE EST. button stays disabled
+  // ("backend offline"), so this never dresses up an absent estimate.
+  piMode: "fused",
   piFused: null,
   confidence: null,
   fusedDriver: null,
@@ -171,6 +196,8 @@ export const useStore = create<State>((set, get) => ({
   setShips: (fc, mode) => set({ ships: fc, shipsMode: mode }),
   screening: null,
   setScreening: (screening) => set({ screening }),
+  newsItems: [],
+  setNewsItems: (newsItems) => set({ newsItems }),
   contextLayers: { israel: true, egypt: true },
   toggleContextLayer: (c) =>
     set((s) => ({
@@ -206,7 +233,7 @@ export const useStore = create<State>((set, get) => ({
   clearDraft: () => set({ draft: { redsea: 0, opec: 0, ships: [] } }),
   startSimulationWith: (ship) => {
     get().addDraftShip(ship);
-    set({ tab: "Simulation Dashboard" });
+    set({ tab: "FinOcean Maximus" });
   },
   pastSimsVersion: 0,
   bumpPastSims: () => set((s) => ({ pastSimsVersion: s.pastSimsVersion + 1 })),
@@ -220,8 +247,28 @@ export const useStore = create<State>((set, get) => ({
   setHighlightMmsi: (highlightMmsi) => set({ highlightMmsi }),
   cascadeFocus: null,
   setCascadeFocus: (cascadeFocus) => set({ cascadeFocus }),
+  world: { dashboard: null, ships: null },
+  // each card commits INDEPENDENTLY — loading one must never wipe the other
+  commitDashboard: (dashboard) =>
+    set((s) => ({ world: { ...s.world, dashboard } })),
+  commitShips: (ships) => set((s) => ({ world: { ...s.world, ships } })),
+  clearWorldCard: (which) =>
+    set((s) => ({ world: { ...s.world, [which]: null } })),
+  loadRunWorld: (w) =>
+    set(() => ({
+      world: { dashboard: w.dashboard ?? null, ships: w.ships ?? null },
+      // mirror into the draft so the sub-pages open on the loaded config
+      draft: {
+        redsea: w.dashboard?.disruptions.redsea ?? 0,
+        opec: w.dashboard?.disruptions.opec ?? 0,
+        ships: w.ships ?? [],
+      },
+      // reflect the loaded Hormuz value on the map slider (manual = not
+      // overridden by live fusion)
+      ...(w.dashboard
+        ? { pi: w.dashboard.disruptions.hormuz, piMode: "manual" as const }
+        : {}),
+    })),
   narrative: null,
   setNarrative: (narrative) => set({ narrative }),
-  plainMode: true, // judges first: plain by default, expert opt-in
-  setPlainMode: (plainMode) => set({ plainMode }),
 }));

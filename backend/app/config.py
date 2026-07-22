@@ -14,9 +14,11 @@ AIS_API_KEY = os.getenv("AIS_API_KEY", "")
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 CUOPT_API_KEY = os.getenv("CUOPT_API_KEY", "")
 FUEL_PRICE_API_KEY = os.getenv("FUEL_PRICE_API_KEY", "")
-# real-time news fallback for when GDELT throttles this IP (keyless GDELT
-# stays primary; this only fills in on 429). Guardian Content API: 5,000/day
-# free, no delay. https://open-platform.theguardian.com/access
+# Google News (RapidAPI, google-news13) — India-positioned PRIMARY news source
+# (lr=en-IN). Guardian + baked remain as fallbacks so the feed never breaks.
+GOOGLE_NEWS_API_KEY = os.getenv("GOOGLE_NEWS_API_KEY", "")
+# real-time news fallback (Guardian Content API): 5,000/day free, no delay.
+# https://open-platform.theguardian.com/access
 GUARDIAN_API_KEY = os.getenv("GUARDIAN_API_KEY", "")
 
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

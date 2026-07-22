@@ -28,6 +28,8 @@ export default function PastSims() {
 
   const open = runs.find((r) => r.id === openId) ?? null;
   const compared = runs.filter((r) => compare.includes(r.id));
+  // the right-hand card exists only when it has content to hold
+  const showAnalysis = !!open || compared.length === 2;
 
   // M-COHESION delta diffing: compare = animated, labeled Δs (B vs A)
   const gdpMeanOf = (r: SavedRun) =>
@@ -43,11 +45,16 @@ export default function PastSims() {
 
   const reload = (r: SavedRun) => {
     const st = useStore.getState();
-    st.setPi(r.disruptions.hormuz ?? 0);
-    st.setDraftDisruption("redsea", r.disruptions.redsea ?? 0);
-    st.setDraftDisruption("opec", r.disruptions.opec ?? 0);
-    // ships are stored without live positions; reload keeps disruptions only
-    st.setTab("Simulation Dashboard");
+    if (r.world) {
+      // full re-load: mix + disruptions + ships (with positions) → ready to RUN
+      st.loadRunWorld(r.world);
+    } else {
+      // legacy run (saved before the world field): disruptions only
+      st.setPi(r.disruptions.hormuz ?? 0);
+      st.setDraftDisruption("redsea", r.disruptions.redsea ?? 0);
+      st.setDraftDisruption("opec", r.disruptions.opec ?? 0);
+    }
+    st.setTab("FinOcean Maximus");
   };
 
   const toggleCompare = (id: number) =>
@@ -74,8 +81,14 @@ export default function PastSims() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* cards column */}
+        <div
+          className={`grid grid-cols-1 gap-6 lg:items-stretch ${
+            showAnalysis ? "lg:grid-cols-2" : ""
+          }`}
+        >
+          {/* cards column — one scrollable card so many runs don't stack down
+              the page; stretches to match the comparison panel's height */}
+          <div className="min-h-0 overflow-y-auto rounded-lg border border-hairline bg-panel/40 p-3 lg:max-h-[calc(100vh_-_12rem)]">
           <ul className="flex flex-col gap-4">
             {runs.map((r) => {
               const active = Object.values(r.disruptions).some((v) => (v ?? 0) > 0);
@@ -146,21 +159,28 @@ export default function PastSims() {
                     </button>
                     <button
                       onClick={() => reload(r)}
-                      className="label-caps flex items-center gap-1 rounded border border-hairline bg-transparent px-2 py-1 text-ink-3 transition-colors hover:border-ink-3 hover:text-ink"
+                      title="Load this run's full scenario and open FinOcean, ready to run"
+                      className="label-caps flex items-center gap-1 rounded bg-secondary px-2 py-1 font-semibold text-navy-deep transition-colors hover:bg-secondary/85"
                     >
                       <span className="material-symbols-outlined text-[14px]">
-                        refresh
+                        bolt
                       </span>
-                      Reload
+                      Load again
                     </button>
                   </div>
                 </li>
               );
             })}
           </ul>
+          </div>
 
-          {/* analysis / compare column */}
-          <div className="flex flex-col gap-4">
+          {/* analysis / compare column — SAME card wrapper as the list, so the
+              two columns are structurally identical boxes and always match.
+              Rendered ONLY when it has something to show; with nothing open or
+              compared there is no empty box at all. */}
+          {showAnalysis && (
+          <div className="min-h-0 overflow-y-auto rounded-lg border border-hairline bg-panel/40 p-3 lg:max-h-[calc(100vh_-_12rem)]">
+            <div className="flex flex-col gap-4">
             {open && (
               <div className="flex flex-col gap-2 rounded-lg border border-hairline bg-panel p-4">
                 <h4 className="label-caps mb-1 text-ink-3">
@@ -260,7 +280,9 @@ export default function PastSims() {
                 </div>
               </div>
             )}
+            </div>
           </div>
+          )}
         </div>
       </div>
     </div>

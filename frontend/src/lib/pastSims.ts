@@ -3,7 +3,7 @@
 
 import type { Band } from "./montecarlo";
 import type { Disruptions } from "./simulate";
-import type { ShipEffect } from "../store";
+import type { ShipEffect, WorldState } from "../store";
 
 export type SavedRun = {
   id: number;
@@ -15,6 +15,10 @@ export type SavedRun = {
   traj: { fuel: number[]; gdp: number[]; run: number[]; stress: number[] };
   fanFuel: Band[];
   fanGdp: Band[];
+  // full committed world (mix + disruptions + ships w/ positions) so a click
+  // can re-load everything and re-run. Optional: runs saved before this field
+  // fall back to the disruptions-only reload.
+  world?: WorldState;
 };
 
 const KEY = "mrvessel.pastSims.v1";

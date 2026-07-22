@@ -16,6 +16,20 @@ import PageIntro from "./PageIntro";
 const API = import.meta.env.VITE_API_HTTP ?? "http://localhost:8000";
 const SPEED_NM_PER_DAY_BASE = 24;
 
+/** short label for a loaded ship's effect (matches impact.ts semantics) */
+function effectLabel(e: { kind: string; chokepoint?: string; delayDays?: number }): string {
+  switch (e.kind) {
+    case "sanction":
+      return "sanctioned";
+    case "delay":
+      return `${e.delayDays ?? 0}d delay`;
+    case "closure":
+      return `${e.chokepoint ?? "hormuz"} closure`;
+    default:
+      return `${e.chokepoint ?? "hormuz"} reroute`;
+  }
+}
+
 // the simulated vessel's own marker — canvas-drawn, no asset
 function shipIcon(): ImageData {
   const c = document.createElement("canvas");
@@ -57,10 +71,13 @@ type SimOutput = {
   cuopt: { cost: number; matches: boolean } | null;
 };
 
-export default function ShipSimulator() {
+export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) {
   const ships = useStore((s) => s.ships);
   const shipsMode = useStore((s) => s.shipsMode);
-  const { addDraftShip, setTab } = useStore.getState();
+  const draftShips = useStore((s) => s.draft.ships); // loaded/affected ships
+  const removeDraftShip = useStore((s) => s.removeDraftShip);
+  const commitShips = useStore((s) => s.commitShips);
+  const { addDraftShip } = useStore.getState();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [scenario, setScenario] = useState(SCENARIOS[0]);
@@ -321,24 +338,79 @@ export default function ShipSimulator() {
         <PageIntro
           page="shipsim"
           intro="Take one ship, block its route, and see the detour: the red line is its new path, with the added days and cost computed from its own speed."
-          hint="Pick a ship, choose what happens to it, press Simulate. Push the result into the Simulation Dashboard to see what it does to India."
+          hint="Pick a ship, choose what happens to it, press Simulate, then press LOAD SHIP → RUN to commit it and return."
         />
+
+        {/* affected ships already committed to the run (e.g. loaded from a past
+            simulation) — visible here so they're not a hidden input */}
+        {draftShips.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-lg border border-secondary/40 bg-panel/80 p-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-secondary">
+                anchor
+              </span>
+              <h2 className="label-caps text-ink">
+                Affected ships · loaded ({draftShips.length})
+              </h2>
+              <span className="caption ml-auto text-ink-3">
+                these feed the run's shortfall
+              </span>
+            </div>
+            <ul className="flex flex-wrap gap-2">
+              {draftShips.map((s) => (
+                <li
+                  key={s.props.mmsi}
+                  className="flex items-center gap-2 rounded-full border border-hairline bg-navy-deep py-1 pl-3 pr-2"
+                >
+                  <button
+                    onClick={() => setSelected(s.props.mmsi)}
+                    title="Show on the map"
+                    className="micro-mono text-ink transition-colors hover:text-secondary"
+                  >
+                    {s.props.name}
+                  </button>
+                  <span className="caption text-ink-3">{effectLabel(s.effect)}</span>
+                  <button
+                    onClick={() => {
+                      // keep the committed run in sync — there is no separate
+                      // header LOAD on this page, so removal takes effect now
+                      removeDraftShip(s.props.mmsi);
+                      commitShips(useStore.getState().draft.ships);
+                    }}
+                    aria-label={`Remove ${s.props.name}`}
+                    className="flex h-4 w-4 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-critical/20 hover:text-critical-text"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* top 3 cards row */}
         <div className="grid shrink-0 grid-cols-1 gap-4 md:grid-cols-3">
-          {/* card 1: ship picker */}
-          <div className="flex flex-col gap-4 rounded-lg border border-hairline bg-panel p-4">
-            <div className="flex items-center gap-2">
+          {/* card 1: ship picker — tanker-deck photo as backdrop, same glass
+              pattern as the scenario + supply-mix panels */}
+          <div className="group relative flex flex-col gap-4 overflow-hidden rounded-lg border border-hairline p-4">
+            <img
+              src="/vessel-deck.jpg"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-[1.35] saturate-[1.4] transition-all duration-300 group-hover:scale-105 group-hover:blur-[4px] motion-reduce:transform-none motion-reduce:transition-none"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-navy-deep/55 transition-colors duration-300 group-hover:bg-navy-deep/45" />
+            <div className="relative flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px] text-secondary">
                 directions_boat
               </span>
-              <h2 className="label-caps text-ink-3">Select Vessel</h2>
-              <span className="micro-mono ml-auto text-ink-3">
+              <h2 className="label-caps text-ink">Select Vessel</h2>
+              <span className="micro-mono ml-auto rounded bg-navy-deep/70 px-1.5 text-ink-2 backdrop-blur-sm">
                 {candidates.length}
               </span>
             </div>
             <div className="relative">
-              <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[16px] text-ink-3">
+              <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2 text-[16px] text-ink-3">
                 search
               </span>
               <input
@@ -346,10 +418,10 @@ export default function ShipSimulator() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search name / MMSI / IMO…"
                 aria-label="Search ships"
-                className="body-md w-full rounded border border-hairline bg-navy-deep py-2 pl-8 pr-2 text-ink outline-none placeholder:text-ink-3 focus:border-secondary"
+                className="body-md relative w-full rounded border border-white/20 bg-navy-deep/85 py-2 pl-8 pr-2 text-ink outline-none backdrop-blur-md placeholder:text-ink-3 focus:border-secondary"
               />
             </div>
-            <ul className="flex max-h-60 flex-col gap-1 overflow-y-auto pr-1">
+            <ul className="relative flex max-h-60 flex-col gap-1 overflow-y-auto rounded-lg border border-white/15 bg-navy-deep/75 p-1 pr-1 backdrop-blur-md">
               {candidates.map((f) => (
                 <li key={f.properties.mmsi}>
                   <button
@@ -386,21 +458,30 @@ export default function ShipSimulator() {
             </ul>
           </div>
 
-          {/* card 2: scenario parameters */}
-          <div className="flex flex-col justify-between gap-4 rounded-lg border border-hairline bg-panel p-4">
-            <div className="flex flex-col gap-4">
+          {/* card 2: scenario parameters — the blocked-canal photo is the
+              backdrop; controls float over it as glass. Same pattern as the
+              supply-mix panel: light scrim, hover blurs the image only. */}
+          <div className="group relative flex flex-col justify-between gap-4 overflow-hidden rounded-lg border border-hairline p-4">
+            <img
+              src="/suez-canal.jpg"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-[1.35] saturate-[1.4] transition-all duration-300 group-hover:scale-105 group-hover:blur-[4px] motion-reduce:transform-none motion-reduce:transition-none"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-navy-deep/55 transition-colors duration-300 group-hover:bg-navy-deep/45" />
+            <div className="relative flex flex-col gap-4">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px] text-secondary">
                   crisis_alert
                 </span>
-                <h2 className="label-caps text-ink-3">Scenario Parameters</h2>
+                <h2 className="label-caps text-ink">Scenario Parameters</h2>
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 rounded-lg border border-white/15 bg-navy-deep/75 p-2 backdrop-blur-md">
                 {SCENARIOS.map((s) => (
                   <label
                     key={s.id}
                     className={`flex cursor-pointer items-center gap-2 py-0.5 ${
-                      scenario.id === s.id ? "" : "opacity-50"
+                      scenario.id === s.id ? "" : "opacity-60"
                     }`}
                   >
                     <input
@@ -414,14 +495,14 @@ export default function ShipSimulator() {
                   </label>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 rounded-lg border border-white/15 bg-navy-deep/75 p-2 backdrop-blur-md">
                 <div className="flex flex-col gap-1">
-                  <span className="label-caps text-ink-3">DESTINATION</span>
+                  <span className="label-caps text-ink-2">DESTINATION</span>
                   <select
                     value={dest}
                     onChange={(e) => setDest(e.target.value)}
                     aria-label="New destination"
-                    className="micro-mono w-full rounded border border-hairline bg-navy-deep px-2 py-2 text-ink outline-none focus:border-secondary"
+                    className="micro-mono w-full rounded border border-white/20 bg-navy-deep/85 px-2 py-2 text-ink outline-none focus:border-secondary"
                   >
                     {DEST_OPTIONS.map((d) => (
                       <option key={d} value={d}>
@@ -432,7 +513,7 @@ export default function ShipSimulator() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
-                    <span className="label-caps text-ink-3">SPEED</span>
+                    <span className="label-caps text-ink-2">SPEED</span>
                     <span className="micro-mono text-secondary">
                       {sog} kt
                     </span>
@@ -452,30 +533,44 @@ export default function ShipSimulator() {
                 </div>
               </div>
             </div>
+            {/* a disabled button with no reason reads as "broken" — say why */}
+            {!ship && (
+              <p className="caption relative mb-1 text-center text-elevated">
+                Pick a vessel from the list to enable this.
+              </p>
+            )}
             <button
               onClick={run}
               disabled={!ship}
-              className="label-caps flex w-full items-center justify-center gap-1 rounded bg-secondary py-2 text-navy transition-colors hover:bg-gold-hover disabled:opacity-40"
+              title={ship ? "Run the reroute" : "Select a vessel first"}
+              className="label-caps relative flex w-full items-center justify-center gap-1 rounded bg-secondary py-2 text-navy transition-colors hover:bg-gold-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span className="material-symbols-outlined text-[16px]">
                 play_arrow
               </span>
-              Simulate this ship
+              {ship ? "Simulate this ship" : "Select a vessel first"}
             </button>
           </div>
 
-          {/* card 3: result */}
-          <div className="flex flex-col gap-4 rounded-lg border border-hairline bg-panel p-4">
-            <div className="flex items-center justify-between">
+          {/* card 3: result — ship's helm as backdrop, same glass pattern */}
+          <div className="group relative flex flex-col gap-4 overflow-hidden rounded-lg border border-hairline p-4">
+            <img
+              src="/helm.jpg"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-[1.35] saturate-[1.4] transition-all duration-300 group-hover:scale-105 group-hover:blur-[4px] motion-reduce:transform-none motion-reduce:transition-none"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-navy-deep/55 transition-colors duration-300 group-hover:bg-navy-deep/45" />
+            <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[16px] text-secondary">
                   route
                 </span>
-                <h2 className="label-caps text-ink-3">
+                <h2 className="label-caps text-ink">
                   Simulation Result
                 </h2>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 rounded bg-navy-deep/70 px-1.5 py-0.5 backdrop-blur-sm">
                 <span
                   className={`h-2 w-2 rounded-full ${
                     out?.cuopt ? "bg-good" : "bg-bright"
@@ -486,11 +581,15 @@ export default function ShipSimulator() {
                 </span>
               </div>
             </div>
-            {!out && <p className="micro-mono text-ink-3">run a simulation…</p>}
+            {!out && (
+              <p className="micro-mono relative rounded-lg border border-white/15 bg-navy-deep/75 p-2 text-ink-2 backdrop-blur-md">
+                run a simulation…
+              </p>
+            )}
             {out && (
               <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1 rounded border border-hairline bg-navy-deep p-2">
+                <div className="relative grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1 rounded border border-white/15 bg-navy-deep/80 p-2 backdrop-blur-md">
                     <span className="label-caps text-ink-3">NORMAL ROUTE</span>
                     <span className="micro-mono text-ink-2">
                       {Math.round(out.normal.nm).toLocaleString()} nm
@@ -500,7 +599,7 @@ export default function ShipSimulator() {
                     </span>
                   </div>
                   {out.alt ? (
-                    <div className="relative flex flex-col gap-1 overflow-hidden rounded border border-critical/30 bg-navy-deep p-2">
+                    <div className="relative flex flex-col gap-1 overflow-hidden rounded border border-critical/40 bg-navy-deep/80 p-2 backdrop-blur-md">
                       <div className="absolute right-0 top-0 h-8 w-8 rounded-bl-full bg-critical opacity-10" />
                       <span className="label-caps text-critical">NEW ROUTE</span>
                       <span className="micro-mono font-bold text-critical-text">
@@ -511,7 +610,7 @@ export default function ShipSimulator() {
                       </span>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1 rounded border border-critical/30 bg-navy-deep p-2">
+                    <div className="flex flex-col gap-1 rounded border border-critical/40 bg-navy-deep/80 p-2 backdrop-blur-md">
                       <span className="label-caps text-critical">NEW ROUTE</span>
                       <span className="micro-mono text-critical-text">
                         no sea route — cargo stranded (that IS the result)
@@ -520,7 +619,7 @@ export default function ShipSimulator() {
                   )}
                 </div>
                 {out.alt && (
-                  <div className="mt-auto flex flex-col gap-2">
+                  <div className="relative mt-auto flex flex-col gap-2 rounded-lg border border-white/15 bg-navy-deep/80 p-2 backdrop-blur-md">
                     <div className="h-px w-full bg-hairline" />
                     <div className="flex items-center justify-between">
                       <span className="label-caps text-ink-3">
@@ -553,12 +652,14 @@ export default function ShipSimulator() {
                           },
                           { kind: "delay", delayDays: Math.max(1, Math.round(out.days)) },
                         );
-                        setTab("Simulation Dashboard");
+                        // Commit straight from here: addDraftShip's store set is
+                        // synchronous, so onLoad (commitShips reading getState) sees
+                        // this vessel. Loads the draft and returns to FinOcean home.
+                        onLoad?.();
                       }}
-                      className="label-caps w-full rounded border border-secondary/50 py-1 text-secondary transition-colors hover:bg-gold-wash"
+                      className="label-caps w-full rounded bg-secondary py-2 font-semibold text-navy-deep transition-colors hover:bg-secondary/85"
                     >
-                      → PUSH INTO SIMULATION DASHBOARD (
-                      {Math.max(1, Math.round(out.days))}D DELAY)
+                      LOAD SHIP → RUN ({Math.max(1, Math.round(out.days))}D DELAY)
                     </button>
                   </div>
                 )}

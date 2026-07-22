@@ -3,6 +3,7 @@ import maplibregl, { type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useStore, type PlantProps, type ShipProps } from "../store";
 import { loadCorridorRisks } from "../lib/risk";
+import { useLiveCorridorRisks } from "../hooks/useCorridorRisks";
 
 // supplier terminal marker — small amber diamond, canvas-drawn
 function supplierDiamond(): ImageData {
@@ -94,6 +95,9 @@ export const FUEL_COLORS: Record<string, string> = {
 export default function GlobeMap({ visible }: { visible: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  // same live-fused risks the panel shows — the map used to paint the baked
+  // snapshot it loaded once at init and never refresh it
+  const { risks: liveRisks } = useLiveCorridorRisks();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -467,6 +471,40 @@ export default function GlobeMap({ visible }: { visible: boolean }) {
 
   // cascade walkthrough: highlight this stage's places and frame them —
   // one place = zoom in on it; several = fit them all; none (Product /
+  // Repaint corridors whenever the fused risk changes, so the map tracks the
+  // panel instead of freezing on its first read. BOTH sources must update —
+  // the % text lives on a separate centroid-point source from the polygons.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || liveRisks.length === 0) return;
+    const poly = map.getSource("corridors") as maplibregl.GeoJSONSource | undefined;
+    const labels = map.getSource("corridor-labels") as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (!poly || !labels) return; // sources not added yet; init paints them
+    const label = (r: (typeof liveRisks)[number]) =>
+      `${r.corridor.name}\n${(r.p * 100).toFixed(0)}%`;
+    poly.setData({
+      type: "FeatureCollection",
+      features: liveRisks.map((r) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [[...r.corridor.polygon, r.corridor.polygon[0]]],
+        },
+        properties: { id: r.corridor.id, p: r.p, label: label(r) },
+      })),
+    });
+    labels.setData({
+      type: "FeatureCollection",
+      features: liveRisks.map((r) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: r.corridor.centroid },
+        properties: { label: label(r) },
+      })),
+    });
+  }, [liveRisks]);
+
   // Sector are nationwide) = frame India
   const cascadeFocus = useStore((s) => s.cascadeFocus);
   useEffect(() => {

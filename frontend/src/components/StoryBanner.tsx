@@ -15,8 +15,6 @@ const SCENARIO_PHRASE = {
 export default function StoryBanner() {
   const sigma = useStore((s) => s.pi);
   const scenario = useStore((s) => s.activeScenario);
-  const plainMode = useStore((s) => s.plainMode);
-  const setPlainMode = useStore((s) => s.setPlainMode);
 
   const { pump, gdp } = useMemo(() => {
     if (sigma <= 0.01) return { pump: 0, gdp: 0 };
@@ -51,18 +49,11 @@ export default function StoryBanner() {
             </span>{" "}
             → <span className="text-critical-text">+₹{pumpT.toFixed(1)}/L</span>{" "}
             at the pump,{" "}
-            <span className="text-critical-text">{gdpT.toFixed(1)} pp</span>{" "}
-            {plainMode ? "off India's growth" : "GDP drag"} over 90 days
+            <span className="text-critical-text">{gdpT.toFixed(1)} pp</span> GDP
+            drag over 90 days
           </>
         )}
       </p>
-      <button
-        onClick={() => setPlainMode(!plainMode)}
-        className="label-caps shrink-0 rounded border border-hairline px-2 py-1 text-ink-3 transition-colors hover:text-ink"
-        aria-pressed={!plainMode}
-      >
-        {plainMode ? "expert mode" : "plain english"}
-      </button>
     </div>
   );
 }

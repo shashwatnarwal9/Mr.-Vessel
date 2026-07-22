@@ -1,11 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  loadCorridorRisks,
-  sanctionsSignalFromFleet,
-  topDriver,
-  type CorridorRisk,
-} from "../lib/risk";
-import { annotateFleet, loadSanctionsIndex } from "../lib/sanctions";
+import { useMemo, useState } from "react";
+import { topDriver, type CorridorRisk } from "../lib/risk";
+import { useLiveCorridorRisks } from "../hooks/useCorridorRisks";
 import {
   addedDays,
   routeFromPosition,
@@ -121,49 +116,10 @@ function CorridorShips({
 /** RA2 + M6e: corridor risk with full per-signal provenance and
  *  click-through to the ships transiting each corridor. */
 export default function RiskPanel() {
-  const [risks, setRisks] = useState<CorridorRisk[]>([]);
+  const { risks: liveRisks, fleet } = useLiveCorridorRisks();
   const [open, setOpen] = useState(true);
-  const [fleet, setFleet] = useState<ShipFeature[]>([]);
-  const ships = useStore((s) => s.ships);
   const selectedCorridor = useStore((s) => s.selectedCorridor);
   const setSelectedCorridor = useStore((s) => s.setSelectedCorridor);
-
-  useEffect(() => {
-    loadCorridorRisks().then(setRisks).catch(() => {});
-  }, []);
-
-  // annotate the fleet once the index is available (shared logic w/ map)
-  useEffect(() => {
-    if (!ships) return;
-    let alive = true;
-    loadSanctionsIndex()
-      .then(({ idx }) => {
-        if (!alive) return;
-        setFleet(annotateFleet(ships.features, idx).features);
-      })
-      .catch(() => setFleet(ships.features));
-    return () => {
-      alive = false;
-    };
-  }, [ships]);
-
-  // M6e: live sanctions signal — recompute from the screened fleet
-  const liveRisks = useMemo(() => {
-    if (fleet.length === 0) return risks;
-    return risks.map((r) => {
-      const live = sanctionsSignalFromFleet(r.corridor, fleet);
-      if (!live) return r;
-      const c = r.contributions.map((x) =>
-        x.signal === "sanctions"
-          ? { ...x, value: live.value, logOdds: (x.logOdds / Math.max(x.value, 1e-9)) * live.value, live: true }
-          : x,
-      );
-      // re-fuse with the substituted signal (same weights, same prior)
-      const logit0 = Math.log(r.corridor.p0 / (1 - r.corridor.p0));
-      const x = logit0 + c.reduce((s, t) => s + t.logOdds, 0);
-      return { ...r, p: 1 / (1 + Math.exp(-x)), contributions: c };
-    });
-  }, [risks, fleet]);
 
   if (liveRisks.length === 0) return null;
 

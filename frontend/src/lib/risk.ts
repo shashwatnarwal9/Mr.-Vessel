@@ -109,6 +109,49 @@ export function sanctionsSignalFromFleet(
   };
 }
 
+/** Which corridor a GLM news tag belongs to. OPEC/fuel/gdp/stress are price or
+ *  economy tags with no chokepoint, so they never move a corridor. Malacca and
+ *  the Cape have no tag of their own and keep their snapshot value. */
+const TAG_CORRIDOR: Record<string, string> = {
+  Hormuz: "hormuz",
+  RedSea: "babmandeb", // Bab el-Mandeb is the Red Sea chokepoint
+  Suez: "suez",
+};
+
+export type NewsSignalItem = { tag: string; severity: number };
+
+/** News signal DERIVED from the live headline feed, replacing the baked
+ *  snapshot for corridors the feed actually covers — the same substitution
+ *  pattern as `sanctionsSignalFromFleet`.
+ *
+ *  Severity dominates deliberately: one CRITICAL report of shooting near a
+ *  strait says more about the next 30 days than five routine mentions, so a
+ *  war-like flag pushes the signal to its ceiling instead of being averaged
+ *  away. Volume is a secondary, saturating term.
+ *
+ *  Note this is the DISRUPTION-PROBABILITY channel, which is a different
+ *  question from the closure-detection σ (that one is speculation-gated so a
+ *  *threat* to close a strait can never be read as a closure). A threat is not
+ *  a closure — but it is unambiguously a rise in risk, and that belongs here. */
+export function newsSignalFromHeadlines(
+  corridor: Corridor,
+  items: NewsSignalItem[],
+): { value: number; n: number; maxSeverity: number } | null {
+  const wanted = Object.keys(TAG_CORRIDOR).find((k) => TAG_CORRIDOR[k] === corridor.id);
+  if (!wanted) return null; // no feed coverage → keep the snapshot value
+  const mine = items.filter((i) => i.tag === wanted);
+  if (mine.length === 0) return null;
+
+  const maxSeverity = Math.max(...mine.map((i) => i.severity));
+  const sev = (Math.min(5, Math.max(1, maxSeverity)) - 1) / 4; // sev 5 → 1.0
+  const volume = Math.min(1, mine.length / 4);
+  return {
+    value: Math.min(1, Math.max(0, 0.7 * sev + 0.3 * volume)),
+    n: mine.length,
+    maxSeverity,
+  };
+}
+
 /** Plain-language driver line: which signal moved this score most. */
 export function topDriver(r: CorridorRisk): string {
   const top = [...r.contributions].sort((a, b) => b.logOdds - a.logOdds)[0];

@@ -13,9 +13,7 @@ const CommandApp = lazy(() => import("./CommandApp"));
 
 const TABS: { tab: Tab; hash: string }[] = [
   { tab: "Command Map", hash: "#command" },
-  { tab: "War Cabinet", hash: "#cabinet" },
-  { tab: "Simulation Dashboard", hash: "#dashboard" },
-  { tab: "Ship Simulator", hash: "#ship" },
+  { tab: "FinOcean Maximus", hash: "#finocean" },
   { tab: "Past Simulations", hash: "#past" },
 ];
 
@@ -72,47 +70,88 @@ export default function App() {
     <div className="h-full overflow-hidden">
       {/* persistent nav: Stitch TopNavBar (s0 shows it translucent, s1–s4 solid) */}
       <nav
-        className={`fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-hairline px-6 transition-colors ${
-          inCommand ? "bg-panel" : "bg-panel/80 backdrop-blur-md"
-        }`}
+        // no bar in either state: no background, no divider. A text-shadow
+        // keeps the chrome legible over whatever sits behind it.
+        className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between bg-transparent px-6 [text-shadow:0_1px_4px_rgba(0,0,0,.9)]"
       >
-        <div className="flex items-center gap-8">
-          {/* the live/baked disclosure lives on the ship panel's chip
-              (Council C2: ship positions declare real vs simulated there) */}
-          <button onClick={goHome} className="flex items-center gap-4">
-            <span className="headline-sm font-black uppercase tracking-tight text-secondary">
-              MR. VESSEL
-            </span>
-          </button>
-          <div className="hidden items-center gap-4 md:flex">
-            {TABS.map(({ tab: t }) => (
-              <button
-                key={t}
-                onClick={() => enterCommand(t)}
-                aria-current={inCommand && tab === t ? "page" : undefined}
-                className={`label-caps transition-colors duration-150 ${
-                  inCommand && tab === t
-                    ? "border-b-2 border-secondary pb-1 text-secondary"
-                    : "text-ink-3 opacity-80 hover:text-gold-hover"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+        {/* the live/baked disclosure lives on the ship panel's chip
+            (Council C2: ship positions declare real vs simulated there) */}
+        <button
+          onClick={goHome}
+          aria-label="Mr. Vessel — back to the landing page"
+          className="flex shrink-0 items-center transition-opacity hover:opacity-80"
+        >
+          {/* the wordmark carries the name, so no text beside it */}
+          <img
+            src="/logo.png"
+            alt="Mr. Vessel"
+            className="h-[2.52rem] w-auto object-contain"
+          />
+        </button>
+
+        {/* tabs centred on the VIEWPORT, not on the leftover space — so the
+            brand and the right-hand tools can change width without shifting
+            them. Absolute keeps it independent of both flanks. */}
+        <div className="pointer-events-none absolute inset-x-0 hidden justify-center md:flex">
+          <div className="pointer-events-auto flex items-center gap-6">
+            {TABS.map(({ tab: t }) => {
+              const active = inCommand && tab === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => enterCommand(t)}
+                  aria-current={active ? "page" : undefined}
+                  // no focus BOX — keyboard focus shows the same underline the
+                  // hover uses, so the indicator stays but the outline goes
+                  className={`label-caps group relative px-1 pb-1 transition-all duration-200 ease-out hover:-translate-y-0.5 focus:outline-none motion-reduce:transform-none motion-reduce:transition-none ${
+                    active
+                      ? "text-secondary"
+                      : "text-ink-3 opacity-80 hover:text-gold-hover hover:opacity-100 focus-visible:text-gold-hover"
+                  }`}
+                >
+                  {t}
+                  {/* underline wipes in from the left on hover / keyboard focus,
+                      and stays put on the active tab */}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-x-0 bottom-0 h-0.5 origin-left bg-secondary transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                      active
+                        ? "scale-x-100"
+                        : "scale-x-0 group-hover:scale-x-100 group-focus-visible:scale-x-100"
+                    }`}
+                  />
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          {inCommand && <SearchBar />}
-          <button
-            onClick={() => setHc((v) => !v)}
-            aria-pressed={hc}
-            title="High-contrast mode"
-            aria-label="Toggle high-contrast mode"
-            className={`material-symbols-outlined rounded border border-hairline p-1 text-[18px] transition-colors ${hc ? "text-secondary" : "text-ink-3 hover:text-ink"}`}
-          >
-            contrast
-          </button>
-          <PresetMenu />
+        {/* instrument tools — the landing stays clean, so search, the contrast
+            toggle and Scenarios all appear only inside the command window.
+            The hackathon badge is the inverse: landing only. */}
+        <div className="flex shrink-0 items-center gap-4">
+          {!inCommand && (
+            <img
+              src="/hackathon-badge.png"
+              alt="ET AI Hackathon 2.0 — Think AI, Build with GenAI"
+              className="h-9 w-auto object-contain"
+            />
+          )}
+          {inCommand && (
+            <>
+              <SearchBar />
+              <button
+                onClick={() => setHc((v) => !v)}
+                aria-pressed={hc}
+                title="High-contrast mode"
+                aria-label="Toggle high-contrast mode"
+                className={`material-symbols-outlined rounded border border-hairline p-1 text-[18px] transition-colors ${hc ? "text-secondary" : "text-ink-3 hover:text-ink"}`}
+              >
+                contrast
+              </button>
+              {/* Scenarios drive the MAP's σ presets — only meaningful there */}
+              {tab === "Command Map" && <PresetMenu />}
+            </>
+          )}
         </div>
       </nav>
 
@@ -120,8 +159,11 @@ export default function App() {
       <CommandPalette enterCommand={enterCommand} />
 
       {inCommand ? (
-        /* state 2: the instrument — owns the whole viewport, no hero above */
-        <section id="command" className="h-full pt-16">
+        /* state 2: the instrument — owns the whole viewport, no hero above.
+           The chart backdrop lives HERE, not on the inner page: the nav is
+           transparent, so painting it below `pt-16` left the body's navy
+           showing as a bar behind the chrome. */
+        <section id="command" className="chart-bg h-full pt-16">
           <Suspense
             fallback={
               <div className="micro-mono grid h-full place-items-center uppercase tracking-[0.3em] text-ink-3">

@@ -5,6 +5,11 @@
 import type { Disruptions } from "./simulate";
 import { BASE } from "./cascade";
 
+/** Episodes in the baked corpus (public/history_corpus.json). Stated here so
+ *  the landing can quote it without bundling the 20KB file; history.test.ts
+ *  asserts it against the real corpus so the two can never drift apart. */
+export const HISTORICAL_SHOCKS = 28;
+
 export type Episode = {
   id: string;
   name: string;

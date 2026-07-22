@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useStore, type ShipEffect, type SimShip } from "../store";
-import { aggregateShortfall, shipShortfall } from "../lib/impact";
+import { useEffect, useRef, useState } from "react";
+import { useStore, type SimShip } from "../store";
+import { aggregateShortfall } from "../lib/impact";
 import { simulate, type Disruptions } from "../lib/simulate";
 import type { McResult } from "../lib/montecarlo";
 import { BASE } from "../lib/cascade";
-import { classifyShip, estimateCargoBbl } from "../lib/ships";
 import { saveRun, type SavedRun } from "../lib/pastSims";
 import { type Supplier } from "../lib/supplier";
 import {
@@ -21,7 +20,8 @@ import { COEFF } from "../lib/cascade";
 import TrajChart from "./TrajChart";
 import FanChart from "./FanChart";
 import RefineryMap from "./RefineryMap";
-import FuelTanker, { supplierColor } from "./FuelTanker";
+// tanker viz removed from the mix panel; the colour scale is still the shared one
+import { supplierColor } from "./FuelTanker";
 import CardDeck, { type DeckCard } from "./CardDeck";
 import PageIntro from "./PageIntro";
 import ValidationPanel from "./ValidationPanel";
@@ -31,13 +31,6 @@ const BLUE = "#3987e5";
 const RED = "#e66767";
 const AQUA = "#199e70";
 const YELLOW = "#c98500";
-
-const EFFECT_LABEL: Record<string, string> = {
-  sanction: "sanction — cargo never arrives",
-  closure: "chokepoint closed on its route",
-  reroute: "reroute the long way",
-  delay: "hold it up by N days",
-};
 
 /* ---------- scenario cards ---------- */
 
@@ -81,10 +74,12 @@ function ScenarioCard({
   const active = value > 0;
   return (
     <div
-      className={`flex flex-col gap-2 rounded border bg-navy-deep p-2 transition-opacity ${
+      // translucent so the panel's backdrop reads through; inactive cards
+      // recede but stay legible (50% over a photo was too faint)
+      className={`flex flex-col gap-2 rounded border bg-navy-deep/75 p-2 backdrop-blur-md transition-opacity ${
         active
-          ? "border-secondary/40"
-          : "border-hairline opacity-50 hover:opacity-100 focus-within:opacity-100"
+          ? "border-secondary/50"
+          : "border-white/15 opacity-75 hover:opacity-100 focus-within:opacity-100"
       }`}
     >
       <div className="flex items-center justify-between">
@@ -147,14 +142,28 @@ async function exportPng(el: HTMLElement | null, name: string) {
   a.click();
 }
 
-export default function SimDashboard() {
+/** `onReport` is the FinOcean sub-page hook: `mix` lives in this component's
+ *  local state, so we hand the live {mix, disruptions, dirty} up to the parent
+ *  which owns the sub-page header (Back / Load / discard guard). `dirty` = has
+ *  anything changed since this sub-page opened. Absent prop = standalone. */
+export default function SimDashboard({
+  onReport,
+  initialMix,
+}: {
+  onReport?: (s: {
+    mix: Mix;
+    disruptions: Disruptions;
+    dirty: boolean;
+  }) => void;
+  /** reopening a loaded FinOcean card restores the committed mix instead of
+   *  snapping back to the PPAC default */
+  initialMix?: Record<string, number>;
+} = {}) {
   const pi = useStore((s) => s.pi); // hormuz value (shared with map slider)
   const setPi = useStore((s) => s.setPi);
   const draft = useStore((s) => s.draft);
-  const ships = useStore((s) => s.ships);
   const {
-    setDraftDisruption, addDraftShip, removeDraftShip,
-    setDraftShipEffect, bumpPastSims,
+    setDraftDisruption, bumpPastSims,
   } = useStore.getState();
 
   const [result, setResult] = useState<RunResult | null>(null);
@@ -168,11 +177,31 @@ export default function SimDashboard() {
       .then((r) => r.json())
       .then((dep) => {
         setSuppliers(dep.suppliers);
-        setMix(defaultMix(dep.suppliers));
+        setMix(initialMix ?? defaultMix(dep.suppliers));
       })
       .catch(() => {});
     exposedPowerMW().then(setPowerMW).catch(() => {});
   }, []);
+
+  // FinOcean sub-page: report live state + dirtiness up to the parent header.
+  // Snapshot the first populated state so "dirty" means "changed since opened".
+  const snapRef = useRef<{ mix: string; disr: string } | null>(null);
+  useEffect(() => {
+    if (!onReport || Object.keys(mix).length === 0) return;
+    const disr: Disruptions = { hormuz: pi, redsea: draft.redsea, opec: draft.opec };
+    const mixKey = JSON.stringify(
+      Object.entries(mix)
+        .map(([k, v]) => [k, Math.round(v * 100)])
+        .sort(),
+    );
+    const disrKey = JSON.stringify(disr);
+    if (!snapRef.current) snapRef.current = { mix: mixKey, disr: disrKey };
+    onReport({
+      mix,
+      disruptions: disr,
+      dirty: snapRef.current.mix !== mixKey || snapRef.current.disr !== disrKey,
+    });
+  }, [mix, pi, draft.redsea, draft.opec, onReport]);
 
   // the hull is 100%: a supplier can only take what the others leave free.
   // Dragging past that clamps and says so, instead of silently overfilling.
@@ -197,10 +226,11 @@ export default function SimDashboard() {
     setMix((m) => ({ ...m, [id]: Math.min(v, headroom) }));
     setMixCorrected(false);
   };
-  const [running, setRunning] = useState(false);
+  // ships + the RUN action moved to the FinOcean page; `running` is no longer
+  // rendered here, but execute() still toggles it
+  const [, setRunning] = useState(false);
   const [runName, setRunName] = useState("");
   const [saved, setSaved] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const graphsRef = useRef<HTMLDivElement>(null);
   const workerRef = useRef<Worker | null>(null);
   // full-screen chart overlay (Esc closes)
@@ -214,18 +244,6 @@ export default function SimDashboard() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [fullChart]);
-
-  const candidates = useMemo(
-    () =>
-      (ships?.features ?? [])
-        .filter((f) => {
-          const cls = classifyShip(f.properties, f.geometry.coordinates);
-          return cls !== "transit" && estimateCargoBbl(f.properties.type) > 0;
-        })
-        .filter((f) => !draft.ships.some((s) => s.props.mmsi === f.properties.mmsi))
-        .slice(0, 20),
-    [ships, draft.ships],
-  );
 
   const runIdRef = useRef(0);
 
@@ -670,7 +688,8 @@ export default function SimDashboard() {
     : [];
 
   return (
-    <div className="h-full overflow-y-auto bg-dim p-6">
+    // transparent: the FinOcean sub-page wrapper paints the chart backdrop
+    <div className="h-full overflow-y-auto p-6">
       {/* import-mix cap warning (transient) */}
       {mixToast && (
         <div
@@ -686,20 +705,30 @@ export default function SimDashboard() {
       <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
         <PageIntro
           page="dashboard"
-          intro="Build a what-if: choose disruptions, pick ships to affect, and see what happens to India's petrol price and economy over 90 days."
-          hint="Open a scenario card and drag its slider (several can be active at once), optionally add ships below, then press Run simulation. Save keeps the run in Past Simulations."
+          intro="Set the macro shock and India's import mix, then Load them into the run."
+          hint="Open a scenario card and drag its slider (several can be active at once), set the supplier shares, then press Load. Ships are configured on the Ship Simulator card; Run lives on the FinOcean page."
         />
 
         {/* controls row: THE SHOCK (4) × INDIA'S SUPPLY MIX (8) */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-          <section className="flex flex-col rounded-lg border border-hairline bg-panel md:col-span-5 lg:col-span-4">
-            <header className="flex items-center justify-between border-b border-hairline px-4 py-2">
-              <h2 className="label-caps flex items-center gap-2 text-ink-3">
+          {/* THE SHOCK — satellite India as backdrop. This asset is already
+              dark, so it takes a much lighter scrim than the flag; the glowing
+              coastline stays visible behind the scenario cards. */}
+          <section className="group relative flex flex-col overflow-hidden rounded-lg border border-hairline md:col-span-5 lg:col-span-4">
+            <img
+              src="/india-satellite.png"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-[1.35] saturate-[1.3] transition-all duration-300 group-hover:scale-105 group-hover:blur-[4px] motion-reduce:transform-none motion-reduce:transition-none"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-navy-deep/45 transition-colors duration-300 group-hover:bg-navy-deep/35" />
+            <header className="relative flex items-center justify-between border-b border-hairline/60 bg-navy-deep/70 px-4 py-2 backdrop-blur-md">
+              <h2 className="label-caps flex items-center gap-2 text-ink">
                 <span className="h-2 w-2 rounded-full bg-elevated" />
                 THE SHOCK
               </h2>
             </header>
-            <div className="flex flex-1 flex-col gap-4 p-4">
+            <div className="relative flex flex-1 flex-col gap-4 p-4">
               <ScenarioCard spec={CARDS[0]} value={pi} onChange={(v) => setPi(v)} />
               <ScenarioCard
                 spec={CARDS[1]}
@@ -713,35 +742,30 @@ export default function SimDashboard() {
               />
             </div>
           </section>
-          <section className="flex flex-col rounded-lg border border-hairline bg-panel md:col-span-7 lg:col-span-8">
-            <header className="flex items-center justify-between border-b border-hairline px-4 py-2">
-              <h2 className="label-caps text-ink-3">
+          {/* India's supply mix — the flag is the panel's backdrop; supplier
+              tiles float over it as translucent glass. `group` drives the
+              hover blur on the image only (never on the copy above it). */}
+          <section className="group relative flex flex-col overflow-hidden rounded-lg border border-hairline md:col-span-7 lg:col-span-8">
+            <img
+              src="/india-flag.jpg"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-125 saturate-150 transition-all duration-300 group-hover:blur-[4px] group-hover:scale-105 motion-reduce:transform-none motion-reduce:transition-none"
+            />
+            {/* Light scrim only — the supplier tiles carry their own dark glass
+                backing, so the flag can stay vivid without eating the copy. */}
+            <div className="pointer-events-none absolute inset-0 bg-navy-deep/45 transition-colors duration-300 group-hover:bg-navy-deep/35" />
+            <header className="relative flex items-center justify-between border-b border-hairline/60 bg-navy-deep/70 px-4 py-2 backdrop-blur-md">
+              <h2 className="label-caps text-ink">
                 INDIA'S SUPPLY MIX
               </h2>
-              <button
-                onClick={() => {
-                  const dm = defaultMix(suppliers);
-                  setMix(dm);
-                  setMixCorrected(false);
-                  // refresh the graphs to the PPAC baseline, but don't file
-                  // this preview run under Past Simulations
-                  run(dm, false);
-                }}
-                className="label-caps flex items-center gap-1 text-secondary transition-colors hover:text-gold-hover"
-              >
-                <span className="material-symbols-outlined text-[14px]">
-                  restart_alt
-                </span>
-                RESET TO ACTUAL (PPAC)
-              </button>
             </header>
-            <div className="grid grid-cols-1 gap-x-6 gap-y-4 p-4 md:grid-cols-2">
+            <div className="relative grid grid-cols-1 gap-x-6 gap-y-3 p-4 md:grid-cols-2">
               {suppliers.map((s, i) => (
                 <label
                   key={s.id}
-                  className="flex items-center gap-3 rounded border border-hairline bg-navy-deep p-2 transition-colors focus-within:border-secondary"
+                  className="flex items-center gap-3 rounded-lg border border-white/20 bg-navy-deep/80 p-2 backdrop-blur-md transition-colors hover:border-secondary/60 focus-within:border-secondary"
                 >
-                  {/* pump colour = this supplier's hold on the tanker below */}
                   <span
                     className="material-symbols-outlined shrink-0 text-[24px]"
                     style={{ color: supplierColor(i) }}
@@ -761,221 +785,59 @@ export default function SimDashboard() {
                       value={Math.round((mix[s.id] ?? 0) * 100)}
                       onChange={(e) => setShare(s.id, Number(e.target.value) / 100)}
                       aria-label={`Import share from ${s.name}`}
-                      className="data-lg w-16 rounded border border-hairline bg-panel px-2 py-1 text-right text-ink focus:border-secondary focus:outline-none"
+                      className="data-lg w-16 rounded border border-white/20 bg-navy-deep/80 px-2 py-1 text-right text-ink focus:border-secondary focus:outline-none"
                     />
                     <span className="micro-mono text-ink-3">%</span>
                   </span>
                 </label>
               ))}
-              <div className="md:col-span-2">
-                <FuelTanker suppliers={suppliers} mix={mix} />
-              </div>
-              <div className="flex items-center justify-between md:col-span-2">
-                <span
-                  className={`micro-mono ${
-                    Math.abs(
-                      Object.values(mix).reduce((a, b) => a + b, 0) - 1,
-                    ) > 0.01
-                      ? "text-elevated"
-                      : "text-ink-3"
-                  }`}
-                >
-                  total {Math.round(Object.values(mix).reduce((a, b) => a + b, 0) * 100)}%
-                  {mixCorrected && " · auto-normalized to 100% on run"}
-                </span>
-              </div>
-            </div>
-          </section>
-        </div>
 
-        {/* affected ships (8) × run action (4) */}
-        <div className="grid grid-cols-1 items-center gap-4 lg:grid-cols-12">
-          <section className="rounded-lg border border-hairline bg-panel lg:col-span-8">
-            <div className="flex items-center justify-between border-b border-hairline px-4 py-2">
-              <h2
-                className="label-caps text-ink-3"
-                title="only India-bound crude changes India's numbers"
-              >
-                AFFECTED SHIPS IN TRANSIT
-              </h2>
-              <div className="flex items-center gap-2">
-                {draft.ships.length > 0 && (
-                  <span className="micro-mono rounded bg-elevated/20 px-2 py-0.5 tabular-nums text-elevated">
-                    {draft.ships.length} ACTIVE
-                  </span>
-                )}
-                <div className="relative">
-                  <button
-                    onClick={() => setPickerOpen((o) => !o)}
-                    className="label-caps flex items-center gap-1 rounded border border-hairline px-2 py-1 text-ink-3 transition-colors hover:border-secondary hover:text-ink"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">
-                      add
-                    </span>
-                    Add ship
-                  </button>
-                  {pickerOpen && (
-                    <ul className="absolute right-0 top-full z-30 mt-1 max-h-64 w-72 overflow-y-auto rounded border border-hairline bg-navy-deep shadow-2xl">
-                      {candidates.length === 0 && (
-                        <li className="micro-mono px-3 py-2 text-ink-3">
-                          no eligible tankers
-                        </li>
-                      )}
-                      {candidates.map((f) => (
-                        <li key={f.properties.mmsi}>
-                          <button
-                            onClick={() => {
-                              addDraftShip({
-                                ...f.properties,
-                                lon: f.geometry.coordinates[0],
-                                lat: f.geometry.coordinates[1],
-                              });
-                              setPickerOpen(false);
-                            }}
-                            className="flex w-full flex-col px-3 py-1.5 text-left transition-colors hover:bg-gold-wash"
-                          >
-                            <span className="body-md text-ink">
-                              {f.properties.name}
-                            </span>
-                            <span className="micro-mono text-ink-3">
-                              {f.properties.type} → {f.properties.dest}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
+              {/* allocation counter — reads to 100 with a fill bar */}
+              {(() => {
+                const total = Math.round(
+                  Object.values(mix).reduce((a, b) => a + b, 0) * 100,
+                );
+                const exact = total === 100;
+                const tone = exact
+                  ? "text-good-text"
+                  : total > 100
+                    ? "text-critical"
+                    : "text-elevated";
+                return (
+                  <div className="flex flex-col gap-1.5 rounded-lg border border-white/20 bg-navy-deep/80 p-3 backdrop-blur-md md:col-span-2">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="label-caps text-ink-2">
+                        TOTAL ALLOCATED
+                      </span>
+                      <span className={`font-mono text-[28px] font-bold leading-none tabular-nums ${tone}`}>
+                        {total}
+                        <span className="text-[15px] font-medium text-ink-3">
+                          /100%
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          exact
+                            ? "bg-good"
+                            : total > 100
+                              ? "bg-critical"
+                              : "bg-secondary"
+                        }`}
+                        style={{ width: `${Math.min(100, total)}%` }}
+                      />
+                    </div>
+                    {mixCorrected && (
+                      <span className="caption text-ink-3">
+                        auto-normalized to 100% on run
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
-            {draft.ships.length === 0 ? (
-              <p className="body-md p-4 text-ink-3">
-                None yet — click a tanker on the Command Map and press ▶ Start
-                Simulation, or add one here.
-              </p>
-            ) : (
-              <table className="w-full text-left">
-                <thead className="micro-mono border-b border-hairline bg-navy-deep text-ink-3">
-                  <tr>
-                    <th className="px-4 py-1 font-normal">VESSEL</th>
-                    <th className="px-4 py-1 font-normal">EFFECT</th>
-                    <th className="px-4 py-1 text-right font-normal">IMPACT</th>
-                    <th className="w-8 px-2 py-1" />
-                  </tr>
-                </thead>
-                <tbody className="body-md">
-                  {draft.ships.map((sh) => (
-                    <tr
-                      key={sh.props.mmsi}
-                      className="border-b border-hairline transition-colors last:border-b-0 hover:bg-gold-wash"
-                    >
-                      <td className="px-4 py-2">
-                        <span className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[16px] text-ink-3">
-                            directions_boat
-                          </span>
-                          <span className="flex flex-col">
-                            <span className="text-ink">{sh.props.name}</span>
-                            <span className="micro-mono text-ink-3">
-                              {sh.props.type} → {sh.props.dest}
-                            </span>
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="flex flex-wrap items-center gap-1">
-                          <select
-                            value={sh.effect.kind}
-                            onChange={(e) =>
-                              setDraftShipEffect(sh.props.mmsi, {
-                                kind: e.target.value as ShipEffect["kind"],
-                                chokepoint: sh.effect.chokepoint ?? "hormuz",
-                                delayDays: sh.effect.delayDays ?? 7,
-                              })
-                            }
-                            aria-label="Effect type"
-                            className="micro-mono rounded border border-hairline bg-navy-deep px-1.5 py-0.5 text-ink-2 focus:border-secondary focus:outline-none"
-                          >
-                            {Object.entries(EFFECT_LABEL).map(([k, v]) => (
-                              <option key={k} value={k}>
-                                {v}
-                              </option>
-                            ))}
-                          </select>
-                          {(sh.effect.kind === "closure" ||
-                            sh.effect.kind === "reroute") && (
-                            <select
-                              value={sh.effect.chokepoint ?? "hormuz"}
-                              onChange={(e) =>
-                                setDraftShipEffect(sh.props.mmsi, {
-                                  ...sh.effect,
-                                  chokepoint: e.target.value as "hormuz" | "redsea",
-                                })
-                              }
-                              aria-label="Chokepoint"
-                              className="micro-mono rounded border border-hairline bg-navy-deep px-1.5 py-0.5 text-ink-2 focus:border-secondary focus:outline-none"
-                            >
-                              <option value="hormuz">Hormuz</option>
-                              <option value="redsea">Red Sea</option>
-                            </select>
-                          )}
-                          {sh.effect.kind === "delay" && (
-                            <label className="micro-mono text-ink-3">
-                              <input
-                                type="number"
-                                min={1}
-                                max={60}
-                                value={sh.effect.delayDays ?? 7}
-                                onChange={(e) =>
-                                  setDraftShipEffect(sh.props.mmsi, {
-                                    ...sh.effect,
-                                    delayDays: Number(e.target.value),
-                                  })
-                                }
-                                className="micro-mono w-12 rounded border border-hairline bg-navy-deep px-1 py-0.5 text-ink-2 focus:border-secondary focus:outline-none"
-                              />{" "}
-                              d
-                            </label>
-                          )}
-                        </span>
-                      </td>
-                      <td className="micro-mono px-4 py-2 text-right tabular-nums">
-                        {(() => {
-                          const t = shipShortfall(sh).reduce((a, b) => a + b, 0);
-                          return t > 0 ? (
-                            <span className="text-elevated">
-                              −{(t / 1e6).toFixed(2)}M bbl
-                            </span>
-                          ) : (
-                            <span className="text-ink-3">no India impact</span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <button
-                          onClick={() => removeDraftShip(sh.props.mmsi)}
-                          aria-label={`Remove ${sh.props.name}`}
-                          className="px-1 text-ink-3 hover:text-ink"
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </section>
-          <div className="flex h-full flex-col justify-end lg:col-span-4">
-            <button
-              onClick={() => run()}
-              disabled={running}
-              className="headline-sm flex h-16 w-full items-center justify-center gap-2 rounded-lg bg-secondary text-navy shadow-[0_0_15px_rgba(255,185,86,0.3)] transition-all hover:bg-gold-hover focus:ring-2 focus:ring-secondary focus:ring-offset-2 focus:ring-offset-dim disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined">play_arrow</span>
-              {running ? "Running 10,000 futures…" : "Run Simulation"}
-            </button>
-          </div>
         </div>
 
         {result && (

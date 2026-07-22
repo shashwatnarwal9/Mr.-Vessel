@@ -42,12 +42,7 @@ function fuzzy(query: string, text: string): number {
   return score + (s.startsWith(q) ? 10 : 0);
 }
 
-const VIEWS: Tab[] = [
-  "Command Map",
-  "Simulation Dashboard",
-  "Ship Simulator",
-  "Past Simulations",
-];
+const VIEWS: Tab[] = ["Command Map", "FinOcean Maximus", "Past Simulations"];
 
 export default function CommandPalette({
   enterCommand,

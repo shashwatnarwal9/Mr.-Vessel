@@ -29,21 +29,9 @@ const tone = (frac: number): "ok" | "warn" | "bad" =>
   frac < 0.25 ? "ok" : frac < 0.6 ? "warn" : "bad";
 
 const SCENARIO_TEXT = {
-  hormuz: {
-    plain: "If Hormuz is blocked…",
-    expert: "Hormuz Disruption",
-    ask: "disruption level",
-  },
-  redsea: {
-    plain: "If the Red Sea is suspended…",
-    expert: "Red Sea Disruption",
-    ask: "suspension level",
-  },
-  opec: {
-    plain: "If OPEC+ cuts output…",
-    expert: "OPEC+ Cut",
-    ask: "cut depth",
-  },
+  hormuz: { title: "If Hormuz is blocked…", ask: "disruption level" },
+  redsea: { title: "If the Red Sea is suspended…", ask: "suspension level" },
+  opec: { title: "If OPEC+ cuts output…", ask: "cut depth" },
 } as const;
 
 export default function CascadePanel() {
@@ -54,7 +42,6 @@ export default function CascadePanel() {
   const confidence = useStore((s) => s.confidence);
   const fusedDriver = useStore((s) => s.fusedDriver);
   const setPiMode = useStore((s) => s.setPiMode);
-  const plain = useStore((s) => s.plainMode);
   const scenario = useStore((s) => s.activeScenario);
   const txt = SCENARIO_TEXT[scenario];
 
@@ -78,7 +65,7 @@ export default function CascadePanel() {
       <div className="flex items-center justify-between">
         <h2 className="label-caps flex items-center gap-1 text-ink">
           <span className="mr-1 h-2 w-2 rounded-full bg-elevated" />
-          {plain ? txt.plain : txt.expert}
+          {txt.title}
         </h2>
       </div>
       <div className="flex rounded-full border border-hairline bg-navy-deep p-1">
@@ -94,7 +81,7 @@ export default function CascadePanel() {
           title={piFused === null ? "backend offline" : "σ estimated live from news + market + ship signals"}
           className={`label-caps flex-1 rounded-full py-1 text-center disabled:opacity-40 ${piMode === "fused" ? "bg-raised text-ink" : "text-ink-3 hover:text-ink"}`}
         >
-          {plain ? "LIVE EST." : "FUSED"}
+          LIVE EST.
           {confidence !== null && piMode === "fused"
             ? ` ${(confidence * 100).toFixed(0)}%`
             : ""}
@@ -102,12 +89,11 @@ export default function CascadePanel() {
       </div>
       <label
         className="flex flex-col gap-2"
-        title={plain ? undefined : "σ: disruption severity 0–1, share of normal chokepoint flow blocked"}
       >
         <span className="micro-mono flex justify-between text-ink-2">
-          <span>{plain ? txt.ask : "σ"}</span>
+          <span>{txt.ask}</span>
           <span className="font-bold text-secondary">
-            {plain ? `${Math.round(pi * 100)}%` : pi.toFixed(2)}
+            {`${Math.round(pi * 100)}%`}
           </span>
         </span>
         <input
@@ -148,22 +134,22 @@ export default function CascadePanel() {
       )}
       <div className="grid grid-cols-2 gap-2">
         <Stat
-          label={plain ? "Refineries" : "Run rate (90d min)"}
+          label="Refineries"
           value={`${runMinT.toFixed(1)}%`}
           tone={tone(1 - runMin)}
         />
         <Stat
-          label={plain ? "Petrol (Delhi)" : "Pump price (settled)"}
+          label="Petrol (Delhi)"
           value={`₹${pumpT.toFixed(1)}/L`}
           tone={tone(pi)}
         />
         <Stat
-          label={plain ? "Elec. at risk" : "Power stress (peak)"}
+          label="Elec. at risk"
           value={`${stressT.toFixed(1)}%`}
           tone={tone(stressPeak * 4)}
         />
         <Stat
-          label={plain ? "Growth hit" : "GDP drag (90d mean)"}
+          label="Growth hit"
           value={`${gdpT.toFixed(2)} pp`}
           tone={tone(-gdpMean / 2)}
         />

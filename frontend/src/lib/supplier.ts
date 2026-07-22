@@ -4,7 +4,6 @@
 // Corridor P_c comes from the computed-risk snapshot (risk.ts). All
 // inputs cited/reasoned in supplier_dependency.json + corridors.json.
 
-import { loadCorridorRisks } from "./risk";
 import { COEFF } from "./cascade";
 
 export type Supplier = {
@@ -17,12 +16,6 @@ export type Supplier = {
   // v7 coupled engine (cited in supplier_dependency.json)
   reroutable: number; // share of interdicted flow that can detour
   spare_capacity_bbl_d: number; // re-sourcing headroom
-};
-
-export type SupplierRisk = {
-  supplier: Supplier;
-  p: number; // probability of delivery disruption
-  viaCorridors: { id: string; exposure: number }[];
 };
 
 export function supplierRisk(
@@ -46,39 +39,4 @@ export function expectedShortfallBblPerDay(
       sum + s.import_share * importsBblPerDay * supplierRisk(s, corridorP),
     0,
   );
-}
-
-// browser loader: joins supplier matrix with the corridor snapshot
-let _cache: {
-  ranked: SupplierRisk[];
-  shortfall: number;
-  asOf: string;
-} | null = null;
-
-export async function loadSupplierRisks() {
-  if (_cache) return _cache;
-  const [dep, corridorRisks] = await Promise.all([
-    fetch("/supplier_dependency.json").then((r) => r.json()),
-    loadCorridorRisks(),
-  ]);
-  const corridorP = Object.fromEntries(
-    corridorRisks.map((r) => [r.corridor.id, r.p]),
-  );
-  const suppliers = dep.suppliers as Supplier[];
-  const ranked = suppliers
-    .map((s) => ({
-      supplier: s,
-      p: supplierRisk(s, corridorP),
-      viaCorridors: Object.entries(s.d).map(([id, share]) => ({
-        id,
-        exposure: share * (corridorP[id] ?? 0),
-      })),
-    }))
-    .sort((a, b) => b.p * b.supplier.import_share - a.p * a.supplier.import_share);
-  _cache = {
-    ranked,
-    shortfall: expectedShortfallBblPerDay(suppliers, corridorP),
-    asOf: dep.meta.as_of as string,
-  };
-  return _cache;
 }

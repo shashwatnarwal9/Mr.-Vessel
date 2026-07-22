@@ -241,9 +241,13 @@ input[type="range"]:disabled::-webkit-slider-thumb {
   background: rgba(255, 255, 255, 0.24);
 }
 
-/* ---- page transition: views cross-fade in on tab switch. Opacity only —
-   a transform here would become the containing block for the Command
-   Map's absolutely-positioned rails and collapse them. ---- */
+/* ---- page transition: whole views arrive the way the landing hands off to
+   the instrument — fade + a short rise. Applied to the TAB views only, never
+   to a page -> sub-page move (those stay instant).
+
+   The rise uses `translate` (not `transform`) and is scoped to views WITHOUT
+   absolutely-positioned rails: a containing block on the Command Map wrapper
+   re-anchors its left/right rails and collapses them. ---- */
 @keyframes viewIn {
   from {
     opacity: 0;
@@ -252,11 +256,25 @@ input[type="range"]:disabled::-webkit-slider-thumb {
     opacity: 1;
   }
 }
+@keyframes viewInRise {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
 .view-enter {
-  animation: viewIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1);
+  animation: viewIn 420ms cubic-bezier(0.22, 0.9, 0.35, 1);
+}
+.view-enter-rise {
+  animation: viewInRise 420ms cubic-bezier(0.22, 0.9, 0.35, 1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .view-enter {
+  .view-enter,
+  .view-enter-rise {
     animation: none;
   }
 }
@@ -274,4 +292,22 @@ html.hc {
   .animate-bounce {
     animation: none;
   }
+}
+
+/* Nautical-chart backdrop for the FinOcean + Past Simulations pages (and their
+   sub-pages). The scrim keeps it a texture, not a competing image — panels and
+   body copy have to stay first-read over it. Fixed so it doesn't slide around
+   while a page scrolls its own content. */
+.chart-bg {
+  background-color: var(--color-dim);
+  /* darkening scrim eased 20% (0.62/0.72 → 0.50/0.58) so 20% more of the chart
+     reads through — brightness lives here, not in a filter: a filter on this
+     element would also brighten every panel and chart drawn inside it. */
+  background-image:
+    linear-gradient(rgba(10, 13, 20, 0.5), rgba(10, 13, 20, 0.58)),
+    url("/chart-bg.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }

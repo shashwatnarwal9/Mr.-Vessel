@@ -3,6 +3,7 @@ import CORRIDORS from "../../public/corridors.json";
 import {
   fuseAll,
   fuseCorridor,
+  newsSignalFromHeadlines,
   logit,
   sigmoid,
   topDriver,
@@ -68,5 +69,59 @@ describe("corridor risk fusion (RA2) — IMMUTABLE checks", () => {
   it("driver line is plain language", () => {
     const r = fuseAll(corridors, weights)[0];
     expect(topDriver(r)).not.toMatch(/logit|odds/i);
+  });
+});
+
+describe("news signal from live headlines (war raises corridor risk)", () => {
+  const hormuz = corridors.find((c) => c.id === "hormuz")!;
+  const malacca = corridors.find((c) => c.id === "malacca")!;
+  const refuse = (c: Corridor, v: number) =>
+    fuseCorridor({ ...c, signals: { ...c.signals, news: v } }, weights).p;
+
+  it("a CRITICAL war headline drives the signal to its ceiling", () => {
+    const s = newsSignalFromHeadlines(hormuz, [
+      { tag: "Hormuz", severity: 5 },
+      { tag: "Hormuz", severity: 4 },
+      { tag: "Hormuz", severity: 5 },
+      { tag: "Hormuz", severity: 3 },
+    ])!;
+    expect(s.maxSeverity).toBe(5);
+    expect(s.value).toBeGreaterThan(0.9);
+  });
+
+  it("war news RAISES the corridor's fused probability vs the snapshot", () => {
+    const war = newsSignalFromHeadlines(hormuz, [
+      { tag: "Hormuz", severity: 5 },
+      { tag: "Hormuz", severity: 5 },
+      { tag: "Hormuz", severity: 4 },
+      { tag: "Hormuz", severity: 4 },
+    ])!;
+    expect(refuse(hormuz, war.value)).toBeGreaterThan(refuse(hormuz, hormuz.signals.news));
+  });
+
+  it("severity dominates volume — one critical beats many routine", () => {
+    const critical = newsSignalFromHeadlines(hormuz, [{ tag: "Hormuz", severity: 5 }])!;
+    const routine = newsSignalFromHeadlines(hormuz, [
+      { tag: "Hormuz", severity: 1 },
+      { tag: "Hormuz", severity: 1 },
+      { tag: "Hormuz", severity: 1 },
+      { tag: "Hormuz", severity: 1 },
+    ])!;
+    expect(critical.value).toBeGreaterThan(routine.value);
+  });
+
+  it("only the corridor's own tag counts; others keep the snapshot", () => {
+    const items = [{ tag: "Hormuz", severity: 5 }];
+    expect(newsSignalFromHeadlines(hormuz, items)).not.toBeNull();
+    // Suez/RedSea untouched by a Hormuz headline
+    const suez = corridors.find((c) => c.id === "suez")!;
+    expect(newsSignalFromHeadlines(suez, items)).toBeNull();
+    // Malacca has no feed tag at all -> always keeps its snapshot
+    expect(newsSignalFromHeadlines(malacca, [{ tag: "Hormuz", severity: 5 }])).toBeNull();
+  });
+
+  it("no headlines for a corridor -> null (never invents a signal)", () => {
+    expect(newsSignalFromHeadlines(hormuz, [])).toBeNull();
+    expect(newsSignalFromHeadlines(hormuz, [{ tag: "OPEC", severity: 5 }])).toBeNull();
   });
 });
