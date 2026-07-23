@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   loadCorridorRisks,
+  marketSignalFromBrent,
   newsSignalFromHeadlines,
   sanctionsSignalFromFleet,
   type CorridorRisk,
 } from "../lib/risk";
+import { BASE } from "../lib/cascade";
 import { annotateFleet, loadSanctionsIndex } from "../lib/sanctions";
 import { useStore, type ShipFeature } from "../store";
 
@@ -22,6 +24,7 @@ export function useLiveCorridorRisks(): {
   const [fleet, setFleet] = useState<ShipFeature[]>([]);
   const ships = useStore((s) => s.ships);
   const newsItems = useStore((s) => s.newsItems);
+  const brent = useStore((s) => s.brentUsd);
 
   useEffect(() => {
     loadCorridorRisks().then(setBase).catch(() => {});
@@ -50,15 +53,25 @@ export function useLiveCorridorRisks(): {
       const liveNews = newsItems.length
         ? newsSignalFromHeadlines(r.corridor, newsItems)
         : null;
-      if (!liveSanctions && !liveNews) return r;
+      // market lift only where the news implicates this corridor (see the
+      // attribution note on marketSignalFromBrent)
+      const liveMarket =
+        liveNews && brent !== null
+          ? marketSignalFromBrent(brent, BASE.brentUsd)
+          : null;
+      if (!liveSanctions && !liveNews && liveMarket === null) return r;
       const contributions = r.contributions.map((x) => {
         const live =
           x.signal === "sanctions"
             ? liveSanctions
             : x.signal === "news"
               ? liveNews
-              : null;
-        if (!live) return x;
+              : x.signal === "market" && liveMarket !== null
+                ? { value: liveMarket }
+                : null;
+        // never let a live read LOWER a snapshot: absence of evidence in one
+        // channel shouldn't cancel evidence in another
+        if (!live || live.value <= x.value) return x;
         // logOdds = weight x value; rescale to keep the same cited weight
         return {
           ...x,
@@ -71,7 +84,7 @@ export function useLiveCorridorRisks(): {
       const x = logit0 + contributions.reduce((s, t) => s + t.logOdds, 0);
       return { ...r, p: 1 / (1 + Math.exp(-x)), contributions };
     });
-  }, [base, fleet, newsItems]);
+  }, [base, fleet, newsItems, brent]);
 
   return { risks, fleet };
 }

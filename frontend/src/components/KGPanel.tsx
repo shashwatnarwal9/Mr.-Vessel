@@ -42,7 +42,6 @@ export default function KGPanel() {
   const pi = useStore((s) => s.pi);
   const scenario = useStore((s) => s.activeScenario);
   const setCascadeFocus = useStore((s) => s.setCascadeFocus);
-  const setPi = useStore((s) => s.setPi);
   const setNarrative = useStore((s) => s.setNarrative);
   const chokepoint = CHOKEPOINT[scenario];
   const [kg, setKg] = useState<KG | null>(null);
@@ -241,13 +240,16 @@ export default function KGPanel() {
       <span className="micro-mono shrink-0 text-ink-3">({kg.mode})</span>
       <button
         onClick={() => {
-          // full reset: end the scenario, drop σ, clear the map focus/narrative
+          // Dismiss the STRIP only. It deliberately does not touch σ: setPi()
+          // flips piMode to "manual", so closing this used to knock the panel
+          // out of LIVE EST. into WHAT-IF. Zeroing σ while staying fused would
+          // be pointless anyway — the next fusion tick writes the live value
+          // straight back.
           cascadeDismissed = true; // sticky for the session
           setPlaying(false);
           setDismissed(true);
           setCascadeFocus(null);
           setNarrative(null);
-          setPi(0);
         }}
         aria-label="Close simulation"
         title="Close"

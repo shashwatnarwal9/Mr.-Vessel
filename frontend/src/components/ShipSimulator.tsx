@@ -105,6 +105,11 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
   }, [ships, query]);
 
   const ship = ships?.features.find((f) => f.properties.mmsi === selected) ?? null;
+  // what the LOAD button will commit: everything staged, plus the vessel on
+  // screen if it isn't staged already (the store dedupes by MMSI)
+  const stagedCount =
+    draftShips.length +
+    (ship && !draftShips.some((s) => s.props.mmsi === ship.properties.mmsi) ? 1 : 0);
 
   // route map (independent maplibre instance, plain dark)
   useEffect(() => {
@@ -262,6 +267,42 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
     });
   }, [ship]);
 
+  /** wipe the drawn route lines so the next vessel starts from a clean map */
+  const clearRoutes = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const id of ["route-normal", "route-new"]) {
+      const src = map.getSource(id) as maplibregl.GeoJSONSource | undefined;
+      src?.setData({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: [] },
+        properties: {},
+      });
+    }
+  };
+
+  /** Stage the simulated vessel into the affected set. The store dedupes by
+   *  MMSI, so re-adding the same ship is a no-op rather than a double count. */
+  const stageCurrent = () => {
+    if (!ship || !out) return;
+    addDraftShip(
+      {
+        ...ship.properties,
+        lon: ship.geometry.coordinates[0],
+        lat: ship.geometry.coordinates[1],
+      },
+      { kind: "delay", delayDays: Math.max(1, Math.round(out.days)) },
+    );
+  };
+
+  /** stage it, then reset the picker so another vessel can be chosen */
+  const stageAndReset = () => {
+    stageCurrent();
+    setSelected(null);
+    setOut(null);
+    clearRoutes();
+  };
+
   const drawRoutes = (normal: RouteResult, alt: RouteResult | null) => {
     const map = mapRef.current;
     if (!map) return;
@@ -338,12 +379,14 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
         <PageIntro
           page="shipsim"
           intro="Take one ship, block its route, and see the detour: the red line is its new path, with the added days and cost computed from its own speed."
-          hint="Pick a ship, choose what happens to it, press Simulate, then press LOAD SHIP → RUN to commit it and return."
+          hint="Pick a ship, choose what happens to it, press Simulate, then + ADD ANOTHER to stage more. LOAD commits every staged vessel and returns."
         />
 
         {/* affected ships already committed to the run (e.g. loaded from a past
             simulation) — visible here so they're not a hidden input */}
-        {draftShips.length > 0 && (
+        {/* also shown once a vessel has been simulated, so LOAD is reachable
+            without having to stage it first */}
+        {(draftShips.length > 0 || (ship && out)) && (
           <div className="flex flex-col gap-2 rounded-lg border border-secondary/40 bg-panel/80 p-3">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px] text-secondary">
@@ -355,6 +398,18 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
               <span className="caption ml-auto text-ink-3">
                 these feed the run's shortfall
               </span>
+              {/* commit lives HERE, with the staged list it acts on — the
+                  result card only stages ("+ add another") */}
+              <button
+                onClick={() => {
+                  stageCurrent(); // include the vessel on screen, if any
+                  onLoad?.();
+                }}
+                title="Commit every staged vessel and return"
+                className="label-caps shrink-0 rounded bg-secondary px-4 py-1.5 font-semibold text-navy-deep transition-colors hover:bg-secondary/85"
+              >
+                LOAD {stagedCount} SHIP{stagedCount === 1 ? "" : "S"} → RUN
+              </button>
             </div>
             <ul className="flex flex-wrap gap-2">
               {draftShips.map((s) => (
@@ -641,25 +696,16 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
                           : "(differs — showing local)"}
                       </p>
                     )}
+                    {/* Two ways out: keep staging vessels, or finish and run.
+                        Batching several ships used to mean re-opening this page
+                        once per ship. */}
+                    {/* staging only — LOAD lives on the affected-ships card */}
                     <button
-                      onClick={() => {
-                        if (!ship) return;
-                        addDraftShip(
-                          {
-                            ...ship.properties,
-                            lon: ship.geometry.coordinates[0],
-                            lat: ship.geometry.coordinates[1],
-                          },
-                          { kind: "delay", delayDays: Math.max(1, Math.round(out.days)) },
-                        );
-                        // Commit straight from here: addDraftShip's store set is
-                        // synchronous, so onLoad (commitShips reading getState) sees
-                        // this vessel. Loads the draft and returns to FinOcean home.
-                        onLoad?.();
-                      }}
+                      onClick={stageAndReset}
+                      title="Add this vessel to the affected list and pick another"
                       className="label-caps w-full rounded bg-secondary py-2 font-semibold text-navy-deep transition-colors hover:bg-secondary/85"
                     >
-                      LOAD SHIP → RUN ({Math.max(1, Math.round(out.days))}D DELAY)
+                      + ADD ANOTHER ({Math.max(1, Math.round(out.days))}D DELAY)
                     </button>
                   </div>
                 )}

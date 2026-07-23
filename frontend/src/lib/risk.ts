@@ -152,6 +152,26 @@ export function newsSignalFromHeadlines(
   };
 }
 
+/** Market signal DERIVED from the live Brent print.
+ *
+ *  The market weight's own citation is "prices aggregate private information",
+ *  so a crude spike is this channel's intended input — the snapshot value was
+ *  simply never refreshed. Scaled against the cited $80 calm baseline and
+ *  saturating at +50% ($120), which is roughly the 2022 wartime peak.
+ *
+ *  ATTRIBUTION (a judgement, stated openly): Brent is global, but a corridor's
+ *  market signal is its own war-risk premium. Lifting every corridor on a Gulf
+ *  spike would put a war premium on Malacca, so the lift is applied ONLY where
+ *  the live news feed also implicates that corridor. No news, no attribution. */
+export function marketSignalFromBrent(
+  brentUsd: number,
+  baselineUsd: number,
+): number | null {
+  if (!isFinite(brentUsd) || brentUsd <= 0 || baselineUsd <= 0) return null;
+  const rise = (brentUsd - baselineUsd) / baselineUsd; // 0 at calm
+  return Math.min(1, Math.max(0, rise / 0.5)); // +50% over baseline => ceiling
+}
+
 /** Plain-language driver line: which signal moved this score most. */
 export function topDriver(r: CorridorRisk): string {
   const top = [...r.contributions].sort((a, b) => b.logOdds - a.logOdds)[0];

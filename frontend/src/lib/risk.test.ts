@@ -3,6 +3,7 @@ import CORRIDORS from "../../public/corridors.json";
 import {
   fuseAll,
   fuseCorridor,
+  marketSignalFromBrent,
   newsSignalFromHeadlines,
   logit,
   sigmoid,
@@ -123,5 +124,37 @@ describe("news signal from live headlines (war raises corridor risk)", () => {
   it("no headlines for a corridor -> null (never invents a signal)", () => {
     expect(newsSignalFromHeadlines(hormuz, [])).toBeNull();
     expect(newsSignalFromHeadlines(hormuz, [{ tag: "OPEC", severity: 5 }])).toBeNull();
+  });
+});
+
+describe("market signal from the live Brent print", () => {
+  const hormuz = corridors.find((c) => c.id === "hormuz")!;
+  const refuse = (market: number) =>
+    fuseCorridor({ ...hormuz, signals: { ...hormuz.signals, market } }, weights).p;
+
+  it("is zero at the calm baseline and rises with the price", () => {
+    expect(marketSignalFromBrent(80, 80)).toBe(0);
+    expect(marketSignalFromBrent(97, 80)!).toBeGreaterThan(0.3);
+    expect(marketSignalFromBrent(97, 80)!).toBeLessThan(0.6);
+  });
+
+  it("saturates at +50% over baseline, never above 1", () => {
+    expect(marketSignalFromBrent(120, 80)).toBe(1);
+    expect(marketSignalFromBrent(400, 80)).toBe(1);
+  });
+
+  it("never goes negative when crude is BELOW baseline", () => {
+    expect(marketSignalFromBrent(60, 80)).toBe(0);
+  });
+
+  it("rejects nonsense prints instead of feeding them to the model", () => {
+    expect(marketSignalFromBrent(NaN, 80)).toBeNull();
+    expect(marketSignalFromBrent(0, 80)).toBeNull();
+    expect(marketSignalFromBrent(-5, 80)).toBeNull();
+  });
+
+  it("a wartime crude spike RAISES the corridor's fused probability", () => {
+    const spike = marketSignalFromBrent(97, 80)!;
+    expect(refuse(spike)).toBeGreaterThan(refuse(hormuz.signals.market));
   });
 });

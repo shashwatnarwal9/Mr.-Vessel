@@ -99,6 +99,9 @@ type State = {
   // signal from the same items the Signals rail shows
   newsItems: { tag: string; severity: number }[];
   setNewsItems: (n: { tag: string; severity: number }[]) => void;
+  // live Brent print — feeds the corridor-risk market signal
+  brentUsd: number | null;
+  setBrentUsd: (v: number | null) => void;
   contextLayers: { israel: boolean; egypt: boolean };
   toggleContextLayer: (c: "israel" | "egypt") => void;
   tab: Tab;
@@ -198,6 +201,8 @@ export const useStore = create<State>((set, get) => ({
   setScreening: (screening) => set({ screening }),
   newsItems: [],
   setNewsItems: (newsItems) => set({ newsItems }),
+  brentUsd: null,
+  setBrentUsd: (brentUsd) => set({ brentUsd }),
   contextLayers: { israel: true, egypt: true },
   toggleContextLayer: (c) =>
     set((s) => ({

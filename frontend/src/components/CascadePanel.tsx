@@ -82,16 +82,22 @@ export default function CascadePanel() {
           className={`label-caps flex-1 rounded-full py-1 text-center disabled:opacity-40 ${piMode === "fused" ? "bg-raised text-ink" : "text-ink-3 hover:text-ink"}`}
         >
           LIVE EST.
-          {confidence !== null && piMode === "fused"
-            ? ` ${(confidence * 100).toFixed(0)}%`
-            : ""}
         </button>
       </div>
       <label
         className="flex flex-col gap-2"
       >
-        <span className="micro-mono flex justify-between text-ink-2">
-          <span>{txt.ask}</span>
+        <span className="micro-mono flex items-center justify-between text-ink-2">
+          <span>
+            {txt.ask}
+            {/* the fused reading's CONFIDENCE, spelled out — shown bare next to
+                LIVE EST. it read as a second, contradictory disruption level */}
+            {piMode === "fused" && confidence !== null && (
+              <span className="ml-2 text-ink-3">
+                live estimate · {(confidence * 100).toFixed(0)}% confidence
+              </span>
+            )}
+          </span>
           <span className="font-bold text-secondary">
             {`${Math.round(pi * 100)}%`}
           </span>
