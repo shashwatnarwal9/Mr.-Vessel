@@ -17,6 +17,7 @@ import KGPanel from "./components/KGPanel";
 import { useFusionFeed } from "./hooks/useFusionFeed";
 import LayerToggle from "./components/LayerToggle";
 import RiskPanel from "./components/RiskPanel";
+import { openDemo, DEMO_GRADIENT } from "./components/DemoCard";
 import { listRuns, saveRun } from "./lib/pastSims";
 import { simulate } from "./lib/simulate";
 import { BASE } from "./lib/cascade";
@@ -149,6 +150,15 @@ export default function CommandApp() {
             <PlantPanel />
             <ShipPanel />
           </div>
+          {/* persistent demo access — compact pill, left of the Signals card */}
+          <button
+            onClick={openDemo}
+            className={`label-caps absolute z-30 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-navy-deep shadow-md shadow-orange-500/30 transition-transform hover:scale-105 ${DEMO_GRADIENT} ${
+              signalsOpen ? "right-[21.5rem] top-4" : "right-4 top-16"
+            }`}
+          >
+            <span className="text-[10px] leading-none">▶</span> See demo
+          </button>
           {/* right column: alerts carousel above Signals; collapsible for density */}
           {signalsOpen ? (
             <div

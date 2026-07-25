@@ -8,6 +8,7 @@ import Hero from "./components/Hero";
 import CommandPalette from "./components/CommandPalette";
 import SearchBar from "./components/SearchBar";
 import PresetMenu from "./components/PresetMenu";
+import DemoCard from "./components/DemoCard";
 
 const CommandApp = lazy(() => import("./CommandApp"));
 
@@ -31,6 +32,9 @@ export default function App() {
   // armed = heavy bundle mounted; inCommand = instrument replaces the hero
   const [armed, setArmed] = useState(() => location.hash in HASH_TO_TAB);
   const [inCommand, setInCommand] = useState(() => location.hash in HASH_TO_TAB);
+  // demo card: shown ONCE per session, and only on the landing → command trip
+  // (a deep link that boots straight into the instrument never triggers it)
+  const [showDemo, setShowDemo] = useState(false);
 
   // deep link: land straight in the instrument, no hero detour
   useEffect(() => {
@@ -49,6 +53,7 @@ export default function App() {
   }, [armed]);
 
   const enterCommand = (t?: Tab) => {
+    const cameFromLanding = !inCommand; // false when switching tabs in-command
     setArmed(true);
     setInCommand(true);
     const next = t ?? useStore.getState().tab;
@@ -58,6 +63,10 @@ export default function App() {
       "",
       TABS.find((x) => x.tab === next)?.hash ?? "#command",
     );
+    if (cameFromLanding && sessionStorage.getItem("mrvessel.demoSeen") !== "1") {
+      sessionStorage.setItem("mrvessel.demoSeen", "1");
+      setShowDemo(true);
+    }
   };
 
   // brand click: back to the landing (the ONLY way to reach it)
@@ -173,6 +182,7 @@ export default function App() {
           >
             <CommandApp />
           </Suspense>
+          <DemoCard open={showDemo} onClose={() => setShowDemo(false)} />
         </section>
       ) : (
         /* state 1: the mission (instrument chunk prefetches in the background) */
