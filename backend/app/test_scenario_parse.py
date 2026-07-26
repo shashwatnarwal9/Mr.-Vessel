@@ -30,7 +30,7 @@ def test_speculative_unchanneled_event_is_dropped():
 
 
 def test_speculation_gate_blocks_threats():
-    # a threat is NOT an event — must never set σ (CLAUDE.md rule)
+    # a threat is NOT an event — must never set σ
     out = _keyword_parse("Iran threatens to close Hormuz")
     assert out["disruptions"]["hormuz"] == 0.0
     assert out["events"] and out["events"][0]["speculative"] is True

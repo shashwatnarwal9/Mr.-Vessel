@@ -34,7 +34,7 @@ const DRAW_CAP_BASE = 0.7; // coefficients.draw_cap_share
 // magic reset. Diplomacy can't reopen a mined strait or reverse an OPEC quota
 // inside the 90-day horizon — without these caps the PM trivially drives every
 // shock to zero (petrol +₹0.0) and the graphs go flat.
-// ponytail: first-order effectiveness caps, tune if a channel is re-calibrated.
+// first-order effectiveness caps; tune if a channel is re-calibrated.
 const DEESC_MAX = 0.4; // diplomacy trims the Hormuz shock ≤40% (+ decay over time)
 const OPEC_MAX = 0.5; // India's leverage over an OPEC+ quota decision ≤50%
 const ESCORT_MAX = 0.6; // convoys cut Red Sea reroute losses ≤60% (proxy, not a fleet model)

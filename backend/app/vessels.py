@@ -14,7 +14,7 @@ from typing import Any
 
 TICK_S = 2.0
 STALE_S = 30 * 60  # drop live vessels not heard from in 30 min
-MAX_FLEET = 400  # ponytail: newest-N cap; spatial index if demo needs more
+MAX_FLEET = 400  # newest-N cap; spatial index if the fleet outgrows it
 
 
 def dead_reckon(feature: dict[str, Any], dt_s: float) -> None:

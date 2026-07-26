@@ -6,7 +6,7 @@ the engine, passed in) and returns:
   * a short prose point-of-view (strategy — never invented outcome numbers), and
   * a structured PolicyLevers block the engine can actually simulate.
 
-Honesty design (CLAUDE.md): GLM does judgment, the engine does arithmetic. The
+Honesty design: the model does judgment, the engine does arithmetic. The
 ministers argue strategy referencing only supplied baseline facts; every number the
 user SEES (charts + scorecard) is engine-computed, so no model is the source of a
 number on screen. Outcome of each plan is scored by simulate(), not asserted here.

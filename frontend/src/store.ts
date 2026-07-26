@@ -106,14 +106,10 @@ type State = {
   setShips: (fc: ShipsFC, mode: "live" | "baked") => void;
   screening: { screened: number; matched: number } | null; // coverage honesty
   setScreening: (s: { screened: number; matched: number }) => void;
-  // Live headline feed, lifted here so corridor risk can derive its news
-  // signal from the same items the Signals rail shows.
-  //
-  // It holds the FULL item, not just {tag, severity}, because CommandApp keys
-  // its wrapper on `tab` — leaving the Command Map unmounts the rail and
-  // returning rebuilds it. Component-local state died on every tab switch, so
-  // the rail re-showed its skeleton and re-fetched. Owning the data here means
-  // a remount repaints instantly and the skeleton is a true first-load event.
+  // Live headline feed. Holds the FULL item, not just {tag, severity}: the
+  // Command Map wrapper is keyed on `tab`, so leaving it unmounts the rail.
+  // Component-local state died on every tab switch, re-showing the skeleton
+  // and re-fetching. Store-owned, a remount repaints instantly.
   newsItems: NewsItem[];
   setNewsItems: (n: NewsItem[]) => void;
   newsMode: "live" | "snapshot";

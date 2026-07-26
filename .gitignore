@@ -4,7 +4,6 @@ dist/
 __pycache__/
 *.pyc
 .venv/
-CLAUDE.md
 DEMO.md
 PROGRESS.md
 FINOCEAN_MAXIMUS_PLAN.md

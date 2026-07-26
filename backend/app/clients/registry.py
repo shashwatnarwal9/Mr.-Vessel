@@ -24,6 +24,7 @@ from ..config import (
     FUEL_PRICE_API_KEY,
     NVIDIA_API_KEY,
     NVIDIA_BASE_URL,
+    TAG_MODEL,
 )
 
 
@@ -291,10 +292,15 @@ def build_clients() -> dict[str, Any]:
     from .gdelt_news import GdeltGlmNews
 
     llm = NvidiaLLM() if NVIDIA_API_KEY else StubLLM()
+    # The news tagger gets its OWN client on a fast classification model. Sharing
+    # `llm` meant headline tagging paid GLM-5.2's reasoning phase (~110s for 20
+    # headlines vs ~20s), which is what made the rail lag minutes behind a
+    # restart. GLM stays on `llm` for RAG narration, where reasoning is the point.
+    tagger = NvidiaLLM(model=TAG_MODEL) if NVIDIA_API_KEY else StubLLM()
     return {
         "llm": llm,
         "ships": AisstreamShips() if AIS_API_KEY else BakedShips(),
-        "news": GdeltGlmNews(llm, BakedNews()) if NVIDIA_API_KEY else BakedNews(),
+        "news": GdeltGlmNews(tagger, BakedNews()) if NVIDIA_API_KEY else BakedNews(),
         "market": LiveMarket(),  # yfinance, no key; fusion skips on failure
         "fuel": LiveFuel() if FUEL_PRICE_API_KEY else BakedFuel(),
         "router": LiveCuOpt() if CUOPT_API_KEY else BakedRouter(),

@@ -32,16 +32,11 @@ export function Underline() {
 
 const GOLD = "#c98500";
 
-/** Glass surface, defined once so every panel in the brief reads as one system.
+/** Glass surface, defined once so every panel in the brief matches.
  *
- *  A WHITE tint, not a darker navy: `bg-navy-deep/55` over an already-dark page
- *  just looks like a solid slab — lowering a dark colour's alpha over a dark
- *  background changes almost nothing. Glass reads as glass from a faint light
- *  film (top-lit gradient), a bright hairline edge, and enough backdrop blur
- *  that the chart texture behind is legibly diffused rather than merely dimmed.
- *
- *  Still dark overall (white at 3-10% over navy), so the red/green values and
- *  ink-3 labels keep their contrast. */
+ *  A WHITE tint, not a darker navy: lowering a dark colour's alpha over a dark
+ *  page barely changes it. Glass reads from a top-lit film, a bright hairline
+ *  edge and enough backdrop blur to diffuse rather than dim. */
 const GLASS =
   "rounded-lg border border-white/15 bg-gradient-to-b from-white/10 to-white/[0.03] " +
   "backdrop-blur-xl shadow-lg shadow-black/20 transition-colors duration-300 " +

@@ -15,14 +15,11 @@ export const NODES: Record<string, [number, number]> = {
   SUEZ: [32.55, 30.0],
   MED_EAST: [31.0, 33.5],
   GIB: [-5.6, 35.95],
-  // THE SUEZ CANAL is a waterway, not a bearing: SUEZ→MED_EAST as one leg ran
-  // diagonally across the Nile Delta (visible on the map cutting past Ismailia
-  // on dry land). Transit now follows the cut itself, south to north.
+  // Suez transit follows the cut itself: SUEZ->MED_EAST as one leg ran
+  // diagonally across the Nile Delta.
   CANAL_MID: [32.35, 30.6], // Great Bitter Lake / Ismailia
   PORT_SAID: [32.3, 31.4], // northern entrance
-  // MEDITERRANEAN: GIB→MED_EAST as a single leg sliced through Tunisia. Three
-  // waypoints keep every segment in open water — Alboran/Algerian basin, south
-  // of Sardinia, then the Sicily channel and open eastern Med.
+  // Mediterranean waypoints: GIB->MED_EAST as one leg sliced through Tunisia.
   W_MED: [1.0, 37.5],
   SARDINIA_S: [9.0, 37.8],
   MED_C: [16.0, 34.5],
@@ -77,10 +74,9 @@ const EDGES: [string, string][] = [
   ["SL_EAST", "CHENNAI"],
   ["ARABIAN_SEA", "BAB"],
   ["BAB", "SUEZ"],
-  // canal transit, south -> north (blocking `suez` still severs it: every
-  // northbound path must pass the SUEZ node itself)
+  // canal transit; blocking `suez` still severs it (every northbound path
+  // must pass the SUEZ node)
   ["SUEZ", "CANAL_MID"], ["CANAL_MID", "PORT_SAID"], ["PORT_SAID", "MED_EAST"],
-  // Mediterranean, hugging open water instead of crossing North Africa
   ["MED_EAST", "MED_C"], ["MED_C", "SARDINIA_S"],
   ["SARDINIA_S", "W_MED"], ["W_MED", "GIB"],
   // Black Sea → Med via the straits (never across Anatolia)

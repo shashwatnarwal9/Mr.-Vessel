@@ -5,7 +5,7 @@ is decomposed into discrete events, each resolved to ONE physical crude-flow
 channel (hormuz / redsea / opec) with a severity 0..1. GLM-5.2 does it when a
 key is present; a deterministic keyword pass is the always-available fallback.
 
-Honesty rails (CLAUDE.md):
+Honesty rails:
   * speculation gate — a THREAT is not an event (reuse fusion.SPECULATION);
     "Iran threatens to close Hormuz" contributes σ=0.
   * geo resolver — Bab-el-Mandeb / Suez / Houthi / Yemen ride the `redsea`

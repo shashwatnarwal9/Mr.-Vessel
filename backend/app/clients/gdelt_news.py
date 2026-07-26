@@ -1,4 +1,9 @@
-"""Live news: GDELT DOC poll → one GLM call tags the whole batch.
+"""Live news: multi-source poll → one LLM call tags the whole batch.
+
+Sources, in fallback order: Google News RSS (keyless, primary), GDELT (keyless
+but IP-throttled — unusable from shared datacenter egress such as Render), and
+a Guardian 7-day backfill. Tagging runs on config.TAG_MODEL, a fast
+classification model, NOT the GLM reasoning model used for RAG narration.
 
 Any failure (GDELT down, GLM queued, bad JSON) returns the fallback
 source's items — the feed never breaks, and tags are never invented
@@ -11,12 +16,14 @@ import json
 import re
 import tempfile
 import time
+import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
 
-from ..config import GOOGLE_NEWS_API_KEY, GUARDIAN_API_KEY
+from ..config import GUARDIAN_API_KEY
 
 # Last good LIVE batch, cached across restarts. Without it every boot shows
 # the dated snapshot until a poll completes (GDELT retry + GLM queue ≈ 3 min),
@@ -25,13 +32,23 @@ CACHE_FILE = Path(tempfile.gettempdir()) / "mrvessel_news_live.json"
 CACHE_MAX_AGE_S = 6 * 3600  # older than this and the snapshot is no worse
 
 GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
-# Google News (RapidAPI) — India-positioned (lr=en-IN). Topic endpoints are not
-# keyword-searchable, so we pull India world + business and keep only the
-# corridor-relevant headlines; an India cricket story must never feed the
-# closure-detection signal.
-GN_HOST = "google-news13.p.rapidapi.com"
-GN_ENDPOINTS = ("world", "business")
-GN_LR = "en-IN"
+
+# Primary source: keyless and keyword-searchable, so it works from a datacenter
+# IP where GDELT is permanently rate-limited (why deploys saw no GDELT items).
+GNEWS_RSS_URL = "https://news.google.com/rss/search"
+GNEWS_QUERY = (
+    'hormuz OR opec OR "red sea" OR suez OR tanker OR crude OR "oil price" '
+    'OR "strait of hormuz" OR refinery OR "crude imports"'
+)
+GNEWS_PARAMS = {"hl": "en-IN", "gl": "IN", "ceid": "IN:en"}  # India edition
+GNEWS_MAX = 20
+
+# "tanker" near "water" is a truck, not a vessel - the dominant sense in Indian
+# news. water misses "waters", so maritime phrasing still passes.
+GN_NOISE = re.compile(r"\bwater\b.{0,40}\btanker\b|\btanker\b.{0,40}\bwater\b", re.I)
+
+# Headline relevance: GDELT matches article BODIES, so unrelated local news
+# qualifies whenever its text happens to mention a corridor.
 GN_RELEVANT = re.compile(
     r"hormuz|strait|opec|crude|\boil\b|petrol|diesel|\bfuel\b|\bgas\b|energy|"
     r"iran|red sea|bab[- ]?el|suez|tanker|refiner|brent|\bimport|shipping|gulf|"
@@ -73,10 +90,8 @@ def _read_cache() -> list[dict[str, Any]] | None:
         data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
         if not isinstance(data, list) or not data:
             return None
-        # gate the cache at its ENTRY point: NewsFeed.start() serves last_live
-        # straight to subscribers without going through _merge_window, so a
-        # batch written before this filter existed would otherwise be on screen
-        # for the whole ~5 min until the first poll lands.
+        # NewsFeed.start() serves this straight to subscribers, bypassing
+        # _merge_window - so a pre-filter batch needs gating here too.
         return _english_only(data) or None
     except (OSError, ValueError):
         return None
@@ -88,38 +103,34 @@ def _iso(seendate: str) -> str:
     return f"{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:{m[6]}Z" if m else seendate
 
 
-def _gn_iso(ms: Any) -> str:
-    # Google News timestamp is ms since epoch -> ISO-8601 Z (passes _iso through)
+def _rss_iso(pubdate: str) -> str:
+    """RSS pubDate (RFC-822) -> ISO-8601 Z, the shape `_iso` passes through."""
     try:
-        return datetime.datetime.fromtimestamp(
-            int(ms) / 1000, tz=datetime.timezone.utc
-        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        dt = parsedate_to_datetime(pubdate)
     except (TypeError, ValueError):
         return ""
+    if dt is None:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-# English-only rail. Anything outside Latin + common punctuation/currency is a
-# non-English headline: Arabic, Cyrillic, Chinese, Devanagari, Hebrew.
-#
-# This is enforced HERE rather than per-source on purpose. Three upstreams feed
-# the pool and each leaks differently — GDELT's `sourcelang:english` is not
-# reliably honoured (okaz.com.sa Arabic reached the rail through it), Google
-# News `lr=en-IN` still returns Hindi/Tamil, and the on-disk cache already holds
-# a batch from before any filter existed. One gate covers all four.
-#
-# Deliberately script-based, not language-detection: it is exact for the scripts
-# that actually show up, needs no dependency, and cannot false-reject a terse
-# English headline the way a stopword heuristic would ("Oil prices surge" has no
-# stopword). Latin-script non-English (French/Spanish) would pass — acceptable,
-# since the queries are all English terms so matches skew English anyway.
-# ponytail: script gate, swap in a real detector only if Latin-script noise appears.
+def _rss_title(raw: str, source: str) -> str:
+    """Google News suffixes every headline with " - Publisher"; the rail already
+    shows the publisher in its own field, so strip the duplicate."""
+    suffix = f" - {source}"
+    return raw[: -len(suffix)].strip() if source and raw.endswith(suffix) else raw
+
+
+# English-only gate, applied to every upstream: none filter reliably (GDELT
+# ignores sourcelang, Google News returns Hindi/Tamil, the disk cache predates
+# any filter). TODO: real language detection if Latin-script noise appears.
 def _english_only(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep Latin-script headlines; drop Arabic/Cyrillic/CJK/Devanagari.
 
-    A codepoint test, not a regex character class: the class needed literal
-    high-plane characters in the source, which is unreadable and was itself a
-    live source of mojibake. Latin-1 + Latin Extended-A/B ends at U+024F;
-    U+2000-U+20BF adds curly quotes, dashes, ellipsis and currency (rupee).
+    Codepoint test, not a regex class: the class needed literal high-plane
+    chars in source. U+2000-U+20BF keeps curly quotes, dashes and the rupee.
     """
 
     def latin(text: str) -> bool:
@@ -151,9 +162,8 @@ def _merge_window(
     ISO-8601 Z timestamps are same-format → lexical compare is chronological.
     """
     by_title: dict[str, dict[str, Any]] = {}
-    # gate AGAIN on the merged view: `prev` is the on-disk cache, which can
-    # hold a batch written before the filter existed. Without this the Arabic
-    # headlines already cached would survive every restart for a full week.
+    # gate the merged view too: `prev` is the disk cache, which can hold a
+    # batch written before the filter existed.
     for it in _english_only((prev or []) + fresh):
         title, ts = it.get("title"), it.get("ts", "")
         if not title or not ts:
@@ -230,55 +240,53 @@ class GdeltGlmNews:
                 return []
             r.raise_for_status()
             try:
-                return r.json().get("articles", [])[:MAX_ITEMS]
+                arts = r.json().get("articles", [])
             except json.JSONDecodeError:
                 return []  # 200 + plain-text scolding = throttled too
+            # body-matched, so screen headlines with the same gate the other
+            # sources use - measured 4 of 23 live items were noise.
+            return [
+                a
+                for a in arts
+                if GN_RELEVANT.search(a.get("title") or "")
+                and not GN_NOISE.search(a.get("title") or "")
+            ][:MAX_ITEMS]
 
-    async def _fetch_googlenews(self) -> list[dict[str, Any]]:
-        """India-positioned PRIMARY source (lr=en-IN). Topic endpoints aren't
-        keyword-searchable, so pull India world + business and keep only the
-        corridor-relevant headlines (an India cricket story must never reach the
-        closure-detection signal). A 403 'not subscribed' just returns [] and
-        the chain falls through to Guardian — the feed never breaks."""
-        if not GOOGLE_NEWS_API_KEY:
-            return []
-        seen: set[str] = set()
-        arts: list[dict[str, Any]] = []
+    async def _fetch_gnews_rss(self) -> list[dict[str, Any]]:
+        """Primary source. Keyless, so it behaves the same locally and
+        deployed. Any failure returns [] and the chain falls through to GDELT,
+        then Guardian."""
         try:
             async with httpx.AsyncClient(
                 timeout=20,
-                headers={
-                    "x-rapidapi-host": GN_HOST,
-                    "x-rapidapi-key": GOOGLE_NEWS_API_KEY,
-                },
+                follow_redirects=True,
+                headers={"User-Agent": "mr-vessel/0.1 (research demo)"},
             ) as http:
-                for n, ep in enumerate(GN_ENDPOINTS):
-                    # BASIC plan enforces a per-SECOND cap, so firing the two
-                    # endpoints back-to-back 429s the second one every time
-                    # ("exceeded the rate limit per second for your plan,
-                    # BASIC" — measured). Space them; the poll cycle is 300s,
-                    # so a second here costs nothing.
-                    if n:
-                        await asyncio.sleep(1.1)
-                    r = await http.get(f"https://{GN_HOST}/{ep}", params={"lr": GN_LR})
-                    if r.status_code != 200:
-                        continue
-                    for a in r.json().get("items") or []:
-                        title = a.get("title") or ""
-                        if title in seen or not GN_RELEVANT.search(title):
-                            continue
-                        seen.add(title)
-                        arts.append(
-                            {
-                                "title": title,
-                                "seendate": _gn_iso(a.get("timestamp")),
-                                "domain": a.get("publisher") or "Google News",
-                            }
-                        )
-        except (httpx.HTTPError, json.JSONDecodeError):
-            pass  # partial results are fine
+                r = await http.get(
+                    GNEWS_RSS_URL, params={"q": GNEWS_QUERY, **GNEWS_PARAMS}
+                )
+            if r.status_code != 200:
+                return []
+            root = ET.fromstring(r.content)
+        except (httpx.HTTPError, ET.ParseError):
+            return []
+        arts: list[dict[str, Any]] = []
+        for item in root.findall(".//item"):
+            raw = (item.findtext("title") or "").strip()
+            node = item.find("{*}source")
+            source = (node.text if node is not None else None) or "Google News"
+            ts = _rss_iso(item.findtext("pubDate") or "")
+            if not raw or not ts:
+                continue
+            title = _rss_title(raw, source)
+            # Google's matching is fuzzy — "tanker" pulled in a story about a
+            # water tank, "crude" a reservoir report. Same headline gate the
+            # other two sources pass through, applied to the same field.
+            if not GN_RELEVANT.search(title) or GN_NOISE.search(title):
+                continue
+            arts.append({"title": title, "seendate": ts, "domain": source})
         arts.sort(key=lambda a: a["seendate"], reverse=True)  # newest first
-        return arts[:MAX_ITEMS]
+        return arts[:GNEWS_MAX]
 
     async def _fetch_guardian(
         self, days: int | None = None, page_size: int = MAX_ITEMS
@@ -336,7 +344,7 @@ class GdeltGlmNews:
             # backfill gives the rail a full week to scroll immediately (Google
             # News only ever returns "latest"). All merged + deduped by title,
             # freshest first so it wins on overlap.
-            fresh = await self._fetch_googlenews()
+            fresh = await self._fetch_gnews_rss()
             if not fresh:
                 fresh = await self._fetch_gdelt()
             week = await self._fetch_guardian(days=WINDOW_DAYS, page_size=MAX_KEEP)
@@ -386,11 +394,24 @@ if __name__ == "__main__":
     # Guardian webPublicationDate is already ISO-8601 Z → passes through untouched
     assert _iso("2026-07-17T05:10:00Z") == "2026-07-17T05:10:00Z"
     # Google News ms-epoch → ISO Z; the corridor filter keeps only relevant news
-    assert _gn_iso(1784645329000) == "2026-07-21T14:48:49Z", _gn_iso(1784645329000)
-    assert _gn_iso("bad") == "" and _gn_iso(None) == ""
+    # Google News RSS: RFC-822 pubDate -> ISO Z, and the " - Publisher" suffix
+    # Google appends to every headline is stripped (the rail shows it separately)
+    assert _rss_iso("Sun, 26 Jul 2026 15:20:02 GMT") == "2026-07-26T15:20:02Z"
+    assert _rss_iso("bad") == "" and _rss_iso("") == ""
+    assert _rss_title("Oil prices surge - The Hindu", "The Hindu") == "Oil prices surge"
+    assert _rss_title("Oil prices surge", "The Hindu") == "Oil prices surge"
     assert GN_RELEVANT.search("Saudi Arabia slams Houthi blockade")
     assert GN_RELEVANT.search("Oil prices jump as Hormuz tensions rise")
     assert not GN_RELEVANT.search("India beat Australia in the final over")
+    # GDELT body-matching noise the rail actually served before the gate was
+    # applied to that source too (both real, from the live feed)
+    assert not GN_RELEVANT.search("Fire services ask Somerset residents to check their bins")
+    assert not GN_RELEVANT.search("As Trump boosts nuclear power, regulators seek to ease rules")
+    # water tankers are trucks: both of these reached the live rail via "tanker"
+    assert GN_NOISE.search("revoke 15% water cut to end tanker dependence")
+    assert GN_NOISE.search("Dad of four electrocuted while drawing water from tanker")
+    assert not GN_NOISE.search("Tanker hits mine in the Strait of Hormuz")
+    assert not GN_NOISE.search("Oil tanker adrift in Gulf waters")  # "waters" != "water"
     # prompt substitution must NOT choke on the literal JSON braces in the
     # example (str.format did → KeyError → tagging never ran → stale news)
     built = _PROMPT.replace("{headlines}", "0. Test headline")

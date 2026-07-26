@@ -27,13 +27,17 @@ NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 CHAT_MODEL = "z-ai/glm-5.2"
 EMBED_MODEL = "baai/bge-m3"
 
+# Tagging is classification, not reasoning: 20 headlines measured at 110s on
+# glm-5.2 vs ~20s here, same 20/20 parse. GLM stays CHAT_MODEL for narration.
+TAG_MODEL = os.getenv("TAG_MODEL", "openai/gpt-oss-120b")
+
 # War Cabinet: one NVIDIA-hosted model per minister. Each role has its own model id
 # and (optionally) its own key — the user supplied separate keys for DM/PM. Any role
 # key left blank falls back to NVIDIA_API_KEY. Override model ids in .env if a catalog
 # string differs. All share NVIDIA_BASE_URL unless a per-role base is set.
 CABINET_MODELS = {
     "fm": os.getenv("FM_MODEL", CHAT_MODEL),  # Foreign Minister — GLM-5.2
-    "dm": os.getenv("DM_MODEL", "qwen/qwen3.5-122b-a10b"),  # Defence Minister
+    "dm": os.getenv("DM_MODEL", "openai/gpt-oss-120b"),  # Defence Minister (qwen 410s)
     "pm": os.getenv("PM_MODEL", "mistralai/mistral-large-3-675b-instruct-2512"),  # PM
 }
 CABINET_KEYS = {

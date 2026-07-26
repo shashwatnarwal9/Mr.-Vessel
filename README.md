@@ -140,16 +140,17 @@ flowchart LR
   UI -- "WS /ws/ships · SSE /sse/*" --> FUS
   UI -- "REST · /scenario/parse · /cabinet/*" --> Backend
   REG --> AIS[aisstream.io]
-  REG --> NV[NVIDIA GLM-5.2 + bge-m3]
-  REG --> CAB[War Cabinet trio<br/>FM nemotron · DM qwen · PM gpt-oss]
+  REG --> NV[NVIDIA GLM-5.2 narration<br/>gpt-oss tagging · bge-m3]
+  REG --> CAB[War Cabinet trio<br/>FM nemotron · DM/PM gpt-oss]
   REG --> CU[NVIDIA cuOpt]
-  REG --> GD[News: Google News · GDELT · Guardian]
+  REG --> GD[News: Google News RSS · GDELT · Guardian]
   REG --> FP[Fuel Price API]
 ```
 
 Two deliberate splits:
 
 - **The simulation engine is pure TypeScript in the browser** ([`frontend/src/lib/`](frontend/src/lib/)). Sliders respond instantly, and the whole model is unit-testable without a server.
+- **Two model tiers, on purpose.** Narration and the War Cabinet run on reasoning models; headline tagging is plain classification and runs on a fast one (`TAG_MODEL`). Sharing one client made the Signals rail wait minutes behind every restart — 110s vs ~20s for the same 20 headlines, at identical accuracy.
 - **The backend only handles live-world I/O** — streaming ship positions, news polling, market prices, LLM narration, and route solving. If it's down (or you have no keys), the frontend falls back to baked snapshots in [`frontend/public/`](frontend/public/) and everything still works.
 
 ---
@@ -209,19 +210,23 @@ Copy [`.env.example`](.env.example) to `.env` at the repo root (git-ignored — 
 ```bash
 # backend — all optional; missing keys mean baked fallback for that feature
 AIS_API_KEY=...          # aisstream.io  — live ship positions
-NVIDIA_API_KEY=...       # build.nvidia.com — GLM-5.2 narration + bge-m3 embeddings
+NVIDIA_API_KEY=...       # build.nvidia.com — narration + bge-m3 embeddings
 CUOPT_API_KEY=...        # NVIDIA cuOpt — route-detour cross-check
 FUEL_PRICE_API_KEY=...   # fuel.indianapi.in — live Delhi pump price
-GOOGLE_NEWS_API_KEY=...  # RapidAPI google-news13 — India-positioned headlines (primary)
 GUARDIAN_API_KEY=...     # open-platform.theguardian.com — 7-day corridor backfill
 CORS_ORIGINS=http://localhost:5173
+
+# Headline tagging runs on a fast classification model, NOT the GLM reasoning
+# model used for narration. Measured on 20 real headlines: glm-5.2 110s vs
+# ~20s here, identical 20/20 parse.
+TAG_MODEL=openai/gpt-oss-120b
 
 # War Cabinet — one NVIDIA-hosted model per minister. Model ids have code defaults;
 # override here if a catalog string differs. Each role can carry its own key (NVIDIA
 # keys are often per-model); any *_API_KEY left blank falls back to NVIDIA_API_KEY.
 FM_MODEL=nvidia/nvidia-nemotron-nano-9b-v2   # Foreign Minister
-DM_MODEL=qwen/qwen3.5-122b-a10b              # Defence Minister
-PM_MODEL=openai/gpt-oss-120b                 # Prime Minister (a distinct model)
+DM_MODEL=openai/gpt-oss-120b                 # Defence Minister
+PM_MODEL=openai/gpt-oss-120b                 # Prime Minister
 FM_API_KEY=...           # Foreign Minister model key (blank → NVIDIA_API_KEY)
 DM_API_KEY=...           # Defence Minister model key
 PM_API_KEY=...           # Prime Minister model key
@@ -247,12 +252,16 @@ VITE_API_WS=ws://localhost:8000
 | Key | Provider | Powers | Without it |
 |---|---|---|---|
 | `AIS_API_KEY` | [aisstream.io](https://aisstream.io) (free) | Live tanker positions over WebSocket | Baked demo fleet (labeled as such) |
-| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | AI narration (GLM-5.2) + semantic search over the crisis corpus (bge-m3); War Cabinet fallback | Grounded template text |
+| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | AI narration (GLM-5.2), headline tagging (`TAG_MODEL`), semantic search (bge-m3); War Cabinet fallback | Grounded template text |
 | `FM_API_KEY` · `DM_API_KEY` · `PM_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | War Cabinet ministers (nemotron / qwen / gpt-oss). NVIDIA keys are often per-model — one key each | Blank → falls back to `NVIDIA_API_KEY`; if that's absent too, the cabinet reports unavailable |
 | `CUOPT_API_KEY` | NVIDIA cuOpt managed API | Independent check of ship-detour routing | Local Haversine result stands alone |
 | `FUEL_PRICE_API_KEY` | [fuel.indianapi.in](https://fuel.indianapi.in) | Live Delhi pump price (1-hour cache — free tier is 100 requests) | Baked snapshot price |
-| `GOOGLE_NEWS_API_KEY` | [RapidAPI · google-news13](https://rapidapi.com) | Primary news source, positioned at India (`lr=en-IN`) | Falls through to GDELT, then Guardian, then the baked snapshot |
 | `GUARDIAN_API_KEY` | [open-platform.theguardian.com](https://open-platform.theguardian.com) (free) | 7-day corridor backfill, so the Signals rail can scroll back a week immediately | Rail fills forward from live polls only |
+
+> **The primary news source needs no key.** Google News RSS is keyless and
+> keyword-searchable, which also makes it the only source that works from a
+> deployed host — GDELT rate-limits by IP and permanently throttles shared
+> datacenter egress such as Render's.
 
 **Rotate any key you've shared** (chat, screen share, demo recording) once you're done.
 
@@ -282,6 +291,11 @@ Notes:
   `VITE_API_HTTP` / `VITE_API_WS` and `CORS_ORIGINS` in `render.yaml` to the real URLs and redeploy
   the frontend (Vite inlines those at build time).
 - **Neo4j isn't deployed** — the cascade endpoint falls back to the identical Python BFS (`mode: "baked"`). Run it locally to serve the real graph.
+- Set **`TAG_MODEL`** on `mr-vessel-api` as well. Without it the deploy tags headlines on the
+  default reasoning model and the Signals rail runs minutes behind every restart.
+- The Signals rail is **Guardian-only in production**, by design: GDELT throttles the shared
+  datacenter IP, so the keyless Google News RSS feed and Guardian carry it. It is still labelled
+  `live` — that label tracks whether headlines were really fetched, never which source served them.
 - On Render's free tier the backend sleeps after ~15 min idle (~40s cold start). The app still loads
   and works on baked data during that window, then upgrades to live once the API wakes. Ping
   `/health` before a demo (or use a free uptime pinger) to keep it warm.
@@ -394,6 +408,8 @@ Stated plainly, because that's the point of the project:
 - The 2022 backtest is **calibration, not validation** — an out-of-sample test (e.g. the 2019 Abqaiq attack) is on the roadmap.
 - The FX channel is implicit inside the calibrated policy-damping, not modeled explicitly.
 - Corridor risk weights are structural, not fitted — 27 historical events is too few to fit 5 signal weights honestly.
-- Live feeds are best-effort: news sources rate-limit (GDELT aggressively by IP) and volunteer AIS coverage in the Gulf is thin, so baked snapshots (clearly labeled) carry the demo. The Signals rail never regresses to an older snapshot once real headlines have arrived.
+- Live feeds are best-effort: volunteer AIS coverage in the Gulf is thin, so baked snapshots (clearly labeled) carry the demo. The Signals rail never regresses to an older snapshot once real headlines have arrived.
+- **GDELT is unusable from a deployed host.** It rate-limits by IP, and shared datacenter egress (Render) is permanently throttled — verified as zero GDELT items across a full 7-day rolling window in production while localhost pulled 17 sources. The keyless Google News RSS feed is the primary source precisely because it is not IP-gated.
+- The Ship Simulator's route **map** is hidden (`SHOW_ROUTE_MAP`). Its waypoint graph draws straight legs between sparse nodes, so ocean routes render over land at world scale. The numbers are unaffected — added days, freight and the cuOpt cross-check come from graph distances, not the drawn line. Densifying the ocean legs is the fix, not more spot patches.
 - The Signals window fills to a full 7 days only where a source can serve a date range (the Guardian backfill); Google News returns "latest" only, so the rest accumulates as the app polls.
 - India is modeled as a solvent price-taker: barrels reroute, they don't vanish. The physical branch is "logistics friction + SPR buffer", not starvation.

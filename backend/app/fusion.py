@@ -107,7 +107,7 @@ def pi_from_brent(brent: float) -> float:
 
 
 def pi_from_ships(fc: dict[str, Any] | None) -> float | None:
-    # ponytail: density anomaly vs fixed baseline; upgrade = per-lane
+    # TODO: density anomaly vs fixed baseline; upgrade = per-lane
     # historical transit rates once live AIS accumulates history
     if not fc:
         return None

@@ -1,26 +1,15 @@
 /** First-load skeletons for the Command Map rails.
  *
- *  Each bone mirrors the REAL row it stands in for — same paddings, same 8px
- *  dot, same 1px hairline dividers, same card border. That is the whole point:
- *  the panels used to pop in and shove the column, and a skeleton that doesn't
- *  match its content just moves the reflow rather than removing it.
- *
- *  The two rails need different scopes because they fail differently. RiskPanel
- *  returns null while loading, so its skeleton has to supply the panel shell.
- *  NewsRail already renders its own header + live/snapshot chip, so its
- *  skeleton replaces only the list.
- *
- *  Animation is Tailwind's `animate-pulse` on the WRAPPER (one synchronised
- *  pulse, not N racing ones). index.css already zeroes `.animate-pulse` under
- *  prefers-reduced-motion, so reduced-motion is handled by the rule already
- *  there — nothing new to maintain.
- */
+ *  Bones mirror the real rows (paddings, dot size, dividers) so the swap to
+ *  real data does not shift layout. RiskPanel returns null while loading so its
+ *  skeleton supplies the panel shell; NewsRail renders its own header, so its
+ *  skeleton replaces only the list. `animate-pulse` is already zeroed under
+ *  prefers-reduced-motion in index.css. */
 
 // bone fill: reads on --color-panel #0a0e17 without competing with real content
 const BONE = "rounded bg-white/[0.07]";
 
-/** Corridor-risk rows: dot + name + percentage, five of them.
- *  Widths track the real corridor names so the swap isn't a visible jump. */
+/** Widths track the real corridor names so the swap is not a visible jump. */
 const RISK_ROWS = [96, 74, 104, 108, 116];
 
 export function RiskSkeleton() {
@@ -55,9 +44,8 @@ export function RiskSkeleton() {
   );
 }
 
-/** Signals cards: time + severity dot, a two-line headline, a tag/source line.
- *  Second title line is shortened on alternate cards so the block doesn't read
- *  as a grid of identical rectangles. */
+/** Signals cards. Alternating second-line widths stop the block reading as a
+ *  grid of identical rectangles. */
 export function SignalsSkeleton() {
   return (
     <ul
