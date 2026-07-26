@@ -21,6 +21,7 @@ import {
   streamPM,
   type Advice,
 } from "../lib/warCabinet";
+import { isCabinetQuestion, OFF_TOPIC_HINT } from "../lib/cabinetRelevance";
 import { saveRun } from "../lib/pastSims";
 import { BASE } from "../lib/cascade";
 import { buildFinOceanPdf } from "../lib/finoceanPdf";
@@ -700,6 +701,16 @@ export default function FinOcean() {
   const sendPrompt = async () => {
     const text = prompt.trim();
     if (!text || busy) return;
+    // Relevance gate BEFORE three models spin up. Without it a prompt that
+    // asked nothing ("i am hungry") still went through as a framing label with
+    // the committed scenario underneath, and the cabinet answered the SCENARIO
+    // — a confident Hormuz policy for a question nobody asked. Deterministic
+    // and instant, so a cold API can't turn this into a hang.
+    if (!isCabinetQuestion(text)) {
+      setCabErr(OFF_TOPIC_HINT);
+      return; // prompt is left in the box so it can be edited, not retyped
+    }
+    setCabErr("");
     let d = world.dashboard?.disruptions;
     if (!d) {
       const p = await parseCrisis(text);

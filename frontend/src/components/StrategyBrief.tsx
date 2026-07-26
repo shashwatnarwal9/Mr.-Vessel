@@ -32,6 +32,21 @@ export function Underline() {
 
 const GOLD = "#c98500";
 
+/** Glass surface, defined once so every panel in the brief reads as one system.
+ *
+ *  A WHITE tint, not a darker navy: `bg-navy-deep/55` over an already-dark page
+ *  just looks like a solid slab — lowering a dark colour's alpha over a dark
+ *  background changes almost nothing. Glass reads as glass from a faint light
+ *  film (top-lit gradient), a bright hairline edge, and enough backdrop blur
+ *  that the chart texture behind is legibly diffused rather than merely dimmed.
+ *
+ *  Still dark overall (white at 3-10% over navy), so the red/green values and
+ *  ink-3 labels keep their contrast. */
+const GLASS =
+  "rounded-lg border border-white/15 bg-gradient-to-b from-white/10 to-white/[0.03] " +
+  "backdrop-blur-xl shadow-lg shadow-black/20 transition-colors duration-300 " +
+  "hover:border-white/25 hover:from-white/[0.14]";
+
 const EFFECT_LABEL: Record<string, string> = {
   closure: "chokepoint closed on its route",
   sanction: "sanctioned — cargo never arrives",
@@ -140,7 +155,12 @@ export default function StrategyBrief({
                   { label: "GDP IMPULSE", value: `${gdpMean.toFixed(1)} pp`, bad: gdpMean < 0 },
                   { label: "AFFECTED SHIPS", value: `${ships.length}`, bad: ships.length > 0 },
                 ].map((k) => (
-                  <div key={k.label} className="rounded-lg border border-hairline bg-panel p-4">
+                  // glass, not a solid slab: translucent navy + backdrop-blur
+                  // lets the nautical chart backdrop read through, and the
+                  // lighter white/20 edge is what makes it register as glass
+                  // rather than a washed-out panel. Same recipe as the tiles on
+                  // the photo-backed cards below, so the brief reads as one set.
+                  <div key={k.label} className={`${GLASS} p-4`}>
                     <span className="label-caps text-ink-3">{k.label}</span>
                     <p className={`data-lg mt-1 ${k.bad ? "text-critical" : "text-good-text"}`}>
                       {k.value}
@@ -149,36 +169,79 @@ export default function StrategyBrief({
                 ))}
               </section>
 
-              {/* all result graphs */}
-              <section className="rounded-lg border border-hairline bg-panel p-5">
-                <h2 className="headline-sm mb-3 text-ink">Projected trajectories</h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <TrajChart
-                    title="PETROL PRICE (₹/L)"
-                    series={[{ name: "run", color: GOLD, values: result.fuel_price }]}
-                    format={(v) => `₹${v.toFixed(1)}`}
-                  />
-                  <TrajChart
-                    title="GDP GROWTH IMPULSE (pp)"
-                    series={[{ name: "run", color: GOLD, values: result.gdp }]}
-                    format={(v) => v.toFixed(2)}
-                  />
-                  <TrajChart
-                    title="REFINERY UTILIZATION (%)"
-                    series={[{ name: "run", color: GOLD, values: result.run_rate.map((x) => x * 100) }]}
-                    format={(v) => `${v.toFixed(1)}%`}
-                  />
-                  <TrajChart
-                    title="GRID STRESS INDEX (%)"
-                    series={[{ name: "run", color: GOLD, values: result.power_stress.map((x) => x * 100) }]}
-                    format={(v) => `${v.toFixed(1)}%`}
-                  />
+              {/* all result graphs. Photo-backed panel, same construction as
+                  INDIA'S SUPPLY MIX in SimDashboard: the image stays VIVID at
+                  full opacity under a light scrim, and legibility comes from
+                  each chart sitting on its own dark glass tile rather than from
+                  dimming the photo. Dimming was the earlier mistake — an opaque
+                  `from-panel` gradient stop erased it entirely. */}
+              <section className="group relative flex flex-col overflow-hidden rounded-lg border border-hairline">
+                <img
+                  src="/pump.jpg"
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-110 transition-all duration-300 group-hover:scale-105 group-hover:blur-[4px] motion-reduce:transform-none motion-reduce:transition-none"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-navy-deep/45 transition-colors duration-300 group-hover:bg-navy-deep/35" />
+                <header className="relative flex items-center border-b border-hairline/60 bg-navy-deep/70 px-4 py-2 backdrop-blur-md">
+                  <h2 className="headline-sm text-ink">Projected trajectories</h2>
+                </header>
+                <div className="relative grid gap-4 p-4 md:grid-cols-2">
+                  {[
+                    {
+                      title: "PETROL PRICE (₹/L)",
+                      values: result.fuel_price,
+                      format: (v: number) => `₹${v.toFixed(1)}`,
+                    },
+                    {
+                      title: "GDP GROWTH IMPULSE (pp)",
+                      values: result.gdp,
+                      format: (v: number) => v.toFixed(2),
+                    },
+                    {
+                      title: "REFINERY UTILIZATION (%)",
+                      values: result.run_rate.map((x) => x * 100),
+                      format: (v: number) => `${v.toFixed(1)}%`,
+                    },
+                    {
+                      title: "GRID STRESS INDEX (%)",
+                      values: result.power_stress.map((x) => x * 100),
+                      format: (v: number) => `${v.toFixed(1)}%`,
+                    },
+                  ].map((c) => (
+                    // dark glass tile — this is what keeps 12px axis labels
+                    // readable, so the pump photo behind can stay vivid
+                    <div
+                      key={c.title}
+                      className="rounded-lg border border-white/20 bg-navy-deep/80 p-3 backdrop-blur-md"
+                    >
+                      <TrajChart
+                        title={c.title}
+                        series={[{ name: "run", color: GOLD, values: c.values }]}
+                        format={c.format}
+                      />
+                    </div>
+                  ))}
                 </div>
               </section>
 
-              {/* suggested mitigation */}
-              <section className="rounded-lg border border-hairline bg-panel p-5">
-                <h2 className="headline-sm mb-1 text-ink">Suggested mitigation</h2>
+              {/* suggested mitigation — the flag backs the card because this
+                  IS the India re-sourcing plan. Identical construction to the
+                  supply-mix panel: vivid flag, light scrim, and the plan body
+                  on its own dark glass so the figures and moves table stay
+                  first-read. */}
+              <section className="group relative flex flex-col overflow-hidden rounded-lg border border-hairline">
+                <img
+                  src="/india-flag.jpg"
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover brightness-125 saturate-150 transition-all duration-300 group-hover:scale-105 group-hover:blur-[4px] motion-reduce:transform-none motion-reduce:transition-none"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-navy-deep/45 transition-colors duration-300 group-hover:bg-navy-deep/35" />
+                <header className="relative flex items-center border-b border-hairline/60 bg-navy-deep/70 px-4 py-2 backdrop-blur-md">
+                  <h2 className="headline-sm text-ink">Suggested mitigation</h2>
+                </header>
+                <div className="relative m-4 rounded-lg border border-white/20 bg-navy-deep/80 p-4 backdrop-blur-md">
                 {mitigation ? (
                   <>
                     <p className="body-md text-ink-2">{mitigation.objective}</p>
@@ -233,10 +296,11 @@ export default function StrategyBrief({
                     Physical shortfall (before mitigation): {kbd(coupled.shortfallBblPerDay)}.
                   </p>
                 )}
+                </div>
               </section>
 
               {/* per-refinery run rate — India map with each refinery tagged */}
-              <section className="rounded-lg border border-hairline bg-panel p-5">
+              <section className={`${GLASS} p-5`}>
                 <h2 className="headline-sm mb-3 text-ink">Per-refinery run rate</h2>
                 <RefineryMap rows={refineries} />
                 <div className="mt-3 grid gap-x-6 gap-y-1 md:grid-cols-2">
@@ -267,7 +331,7 @@ export default function StrategyBrief({
 
               {/* affected ships we loaded */}
               {ships.length > 0 && (
-                <section className="rounded-lg border border-hairline bg-panel p-5">
+                <section className={`${GLASS} p-5`}>
                   <h2 className="headline-sm mb-3 text-ink">Affected ships loaded</h2>
                   <table className="w-full text-left">
                     <thead className="micro-mono border-b border-hairline text-ink-3">

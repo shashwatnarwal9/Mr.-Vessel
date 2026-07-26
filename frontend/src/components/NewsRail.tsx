@@ -15,6 +15,11 @@ const SEV: Record<number, string> = {
 const SSE_URL =
   (import.meta.env.VITE_API_HTTP ?? "http://localhost:8000") + "/sse/news";
 
+// How long the bones may run before we paint the static snapshot instead.
+// A warm backend pushes its first SSE frame in ~50ms, so this never fires in
+// normal operation — it exists purely for a cold/sleeping API on deploy.
+const COLD_START_MS = 3500;
+
 const dayKey = (ts: string) => new Date(ts).toDateString();
 const dayLabel = (ts: string) => {
   const d = new Date(ts);
@@ -83,7 +88,25 @@ export default function NewsRail() {
       es.close();
       fallback();
     };
-    return () => es.close();
+
+    // COLD-START RACE (deployment). On Render's free plan the API spins down
+    // after ~15 min idle and takes ~50s to wake, on top of this app's own
+    // 12-15s boot. Through that whole window EventSource neither delivers a
+    // message nor fires onerror — it just hangs — so `onerror`-only recovery
+    // never triggers and the rail would sit on bones for a minute with a
+    // perfectly good static snapshot one fetch away on the SAME static host.
+    //
+    // So race a timer: if nothing has landed, paint the snapshot now. The SSE
+    // is deliberately LEFT OPEN, so when the backend finally wakes its first
+    // push upgrades the rail in place (and flips the chip to "live").
+    // Never a regression — this only ever fills an EMPTY rail.
+    const coldStart = setTimeout(() => {
+      if (!useStore.getState().newsSettled) void fallback();
+    }, COLD_START_MS);
+    return () => {
+      clearTimeout(coldStart);
+      es.close();
+    };
   }, [reconnect]);
 
   return (
