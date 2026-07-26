@@ -57,6 +57,12 @@ export function fuseAll(corridors: Corridor[], w: Weights): CorridorRisk[] {
 
 // browser-side lazy loader: corridors.json → fused risks (cached)
 let _risks: CorridorRisk[] | null = null;
+
+/** Already-fused risks, SYNCHRONOUSLY, or null if the first load hasn't
+ *  finished. A consumer that remounts (CommandApp keys its wrapper on `tab`)
+ *  can seed its state from this instead of flashing a skeleton for one frame
+ *  while an already-resolved promise re-settles. */
+export const peekCorridorRisks = (): CorridorRisk[] | null => _risks;
 export async function loadCorridorRisks(): Promise<CorridorRisk[]> {
   if (_risks) return _risks;
   const file = await fetch("/corridors.json").then((r) => r.json());

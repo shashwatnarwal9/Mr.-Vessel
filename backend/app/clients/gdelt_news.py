@@ -71,7 +71,13 @@ def _read_cache() -> list[dict[str, Any]] | None:
         if age > CACHE_MAX_AGE_S:
             return None
         data = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) and data else None
+        if not isinstance(data, list) or not data:
+            return None
+        # gate the cache at its ENTRY point: NewsFeed.start() serves last_live
+        # straight to subscribers without going through _merge_window, so a
+        # batch written before this filter existed would otherwise be on screen
+        # for the whole ~5 min until the first poll lands.
+        return _english_only(data) or None
     except (OSError, ValueError):
         return None
 
@@ -90,6 +96,36 @@ def _gn_iso(ms: Any) -> str:
         ).strftime("%Y-%m-%dT%H:%M:%SZ")
     except (TypeError, ValueError):
         return ""
+
+
+# English-only rail. Anything outside Latin + common punctuation/currency is a
+# non-English headline: Arabic, Cyrillic, Chinese, Devanagari, Hebrew.
+#
+# This is enforced HERE rather than per-source on purpose. Three upstreams feed
+# the pool and each leaks differently — GDELT's `sourcelang:english` is not
+# reliably honoured (okaz.com.sa Arabic reached the rail through it), Google
+# News `lr=en-IN` still returns Hindi/Tamil, and the on-disk cache already holds
+# a batch from before any filter existed. One gate covers all four.
+#
+# Deliberately script-based, not language-detection: it is exact for the scripts
+# that actually show up, needs no dependency, and cannot false-reject a terse
+# English headline the way a stopword heuristic would ("Oil prices surge" has no
+# stopword). Latin-script non-English (French/Spanish) would pass — acceptable,
+# since the queries are all English terms so matches skew English anyway.
+# ponytail: script gate, swap in a real detector only if Latin-script noise appears.
+def _english_only(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep Latin-script headlines; drop Arabic/Cyrillic/CJK/Devanagari.
+
+    A codepoint test, not a regex character class: the class needed literal
+    high-plane characters in the source, which is unreadable and was itself a
+    live source of mojibake. Latin-1 + Latin Extended-A/B ends at U+024F;
+    U+2000-U+20BF adds curly quotes, dashes, ellipsis and currency (rupee).
+    """
+
+    def latin(text: str) -> bool:
+        return all(ord(c) < 0x250 or 0x2000 <= ord(c) <= 0x20BF for c in text)
+
+    return [i for i in items if latin(i.get("title") or "")]
 
 
 def _dedup_titles(arts: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -115,7 +151,10 @@ def _merge_window(
     ISO-8601 Z timestamps are same-format → lexical compare is chronological.
     """
     by_title: dict[str, dict[str, Any]] = {}
-    for it in (prev or []) + fresh:
+    # gate AGAIN on the merged view: `prev` is the on-disk cache, which can
+    # hold a batch written before the filter existed. Without this the Arabic
+    # headlines already cached would survive every restart for a full week.
+    for it in _english_only((prev or []) + fresh):
         title, ts = it.get("title"), it.get("ts", "")
         if not title or not ts:
             continue
@@ -213,7 +252,14 @@ class GdeltGlmNews:
                     "x-rapidapi-key": GOOGLE_NEWS_API_KEY,
                 },
             ) as http:
-                for ep in GN_ENDPOINTS:
+                for n, ep in enumerate(GN_ENDPOINTS):
+                    # BASIC plan enforces a per-SECOND cap, so firing the two
+                    # endpoints back-to-back 429s the second one every time
+                    # ("exceeded the rate limit per second for your plan,
+                    # BASIC" — measured). Space them; the poll cycle is 300s,
+                    # so a second here costs nothing.
+                    if n:
+                        await asyncio.sleep(1.1)
                     r = await http.get(f"https://{GN_HOST}/{ep}", params={"lr": GN_LR})
                     if r.status_code != 200:
                         continue
@@ -294,7 +340,10 @@ class GdeltGlmNews:
             if not fresh:
                 fresh = await self._fetch_gdelt()
             week = await self._fetch_guardian(days=WINDOW_DAYS, page_size=MAX_KEEP)
-            pool = _dedup_titles(fresh + week)[:TAG_BUDGET]
+            # gate BEFORE tagging: no point spending GLM tokens on headlines
+            # that can never reach the rail (and it can't mis-tag what it
+            # never sees)
+            pool = _dedup_titles(_english_only(fresh + week))[:TAG_BUDGET]
             if not pool:
                 return await self._degraded()
             headlines = "\n".join(f"{i}. {a['title']}" for i, a in enumerate(pool))
@@ -363,4 +412,34 @@ if __name__ == "__main__":
     # _dedup_titles keeps first occurrence (freshest/primary source wins)
     dd = _dedup_titles([{"title": "X", "domain": "GN"}, {"title": "X", "domain": "Guardian"}, {"title": "Y"}])
     assert [a["title"] for a in dd] == ["X", "Y"] and dd[0]["domain"] == "GN", dd
+    # English-only gate. Must drop non-Latin scripts while keeping English that
+    # carries accents, curly quotes, dashes or a rupee sign — those are the
+    # false-positives a naive [a-zA-Z] filter would cause.
+    keep = [
+        {"title": "Oil tanker explodes after hitting naval mine in Strait of Hormuz"},
+        {"title": "Petrol hits ₹105/L as Brent — the benchmark — spikes"},
+        {"title": "Suez transit falls; café owners in Port Said feel the pinch"},
+        {"title": "Iran’s navy drills narrow the transit corridor"},
+    ]
+    drop = [
+        {"title": "تعليق الضربات"},  # Arabic (okaz.com.sa)
+        {"title": "Нефть растет"},  # Cyrillic
+        {"title": "石油价格上涨"},  # Chinese
+        {"title": "तेल की कीमत"},  # Devanagari
+    ]
+    assert _english_only(keep) == keep, "dropped legitimate English"
+    assert _english_only(drop) == [], "kept non-English"
+    assert _english_only(keep + drop) == keep, "mixed batch not filtered"
+    # a missing title is a VALIDITY problem, not a language one: this gate must
+    # not crash on it and must not claim it as non-English — _dedup_titles and
+    # _merge_window are what drop untitled rows
+    assert _english_only([{"title": None}, {}]) == [{"title": None}, {}]
+    assert _merge_window(None, [{"title": None, "ts": iso(0)}]) == []
+    # the merge gate purges an already-cached non-English batch (the disk cache
+    # predates this filter, so restarting must not resurrect it)
+    merged = _merge_window(
+        [{"ts": iso(1), "title": drop[0]["title"]}], [{"ts": iso(0), "title": "Brent spikes"}]
+    )
+    assert [x["title"] for x in merged] == ["Brent spikes"], merged
+
     print("gdelt parser OK")

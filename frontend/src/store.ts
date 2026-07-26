@@ -64,6 +64,17 @@ export type ShipFeature = {
 
 export type ShipsFC = { type: "FeatureCollection"; features: ShipFeature[] };
 
+/** One tagged headline from the Signals feed. Lives here rather than in
+ *  NewsRail because the store now owns the feed (see `newsItems`). */
+export type NewsItem = {
+  id: number;
+  ts: string;
+  source: string;
+  title: string;
+  tag: string;
+  severity: number; // 1..5
+};
+
 type State = {
   selectedPlant: PlantProps | null;
   setSelectedPlant: (p: PlantProps | null) => void;
@@ -95,10 +106,22 @@ type State = {
   setShips: (fc: ShipsFC, mode: "live" | "baked") => void;
   screening: { screened: number; matched: number } | null; // coverage honesty
   setScreening: (s: { screened: number; matched: number }) => void;
-  // live headline feed, lifted here so corridor risk can derive its news
-  // signal from the same items the Signals rail shows
-  newsItems: { tag: string; severity: number }[];
-  setNewsItems: (n: { tag: string; severity: number }[]) => void;
+  // Live headline feed, lifted here so corridor risk can derive its news
+  // signal from the same items the Signals rail shows.
+  //
+  // It holds the FULL item, not just {tag, severity}, because CommandApp keys
+  // its wrapper on `tab` — leaving the Command Map unmounts the rail and
+  // returning rebuilds it. Component-local state died on every tab switch, so
+  // the rail re-showed its skeleton and re-fetched. Owning the data here means
+  // a remount repaints instantly and the skeleton is a true first-load event.
+  newsItems: NewsItem[];
+  setNewsItems: (n: NewsItem[]) => void;
+  newsMode: "live" | "snapshot";
+  setNewsMode: (m: "live" | "snapshot") => void;
+  // has the feed ANSWERED yet (either way)? distinguishes "still loading"
+  // (bones) from "loaded and genuinely empty" (no bones, empty state)
+  newsSettled: boolean;
+  setNewsSettled: (v: boolean) => void;
   // live Brent print — feeds the corridor-risk market signal
   brentUsd: number | null;
   setBrentUsd: (v: number | null) => void;
@@ -201,6 +224,10 @@ export const useStore = create<State>((set, get) => ({
   setScreening: (screening) => set({ screening }),
   newsItems: [],
   setNewsItems: (newsItems) => set({ newsItems }),
+  newsMode: "snapshot",
+  setNewsMode: (newsMode) => set({ newsMode }),
+  newsSettled: false,
+  setNewsSettled: (newsSettled) => set({ newsSettled }),
   brentUsd: null,
   setBrentUsd: (brentUsd) => set({ brentUsd }),
   contextLayers: { israel: true, egypt: true },

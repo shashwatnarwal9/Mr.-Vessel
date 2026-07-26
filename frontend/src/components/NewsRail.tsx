@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useStore } from "../store";
-
-type NewsItem = {
-  id: number;
-  ts: string;
-  source: string;
-  title: string;
-  tag: string;
-  severity: number; // 1..5
-};
+import { SignalsSkeleton } from "./Skeletons";
+import { useStore, type NewsItem } from "../store";
 
 // dataviz status palette (reserved, never series colors; no yellow —
 // never collides with brand gold)
@@ -39,10 +31,18 @@ const dayLabel = (ts: string) => {
 };
 
 export default function NewsRail() {
-  const [items, setItems] = useState<NewsItem[]>([]);
+  // Feed state lives in the STORE, not here: CommandApp keys its wrapper on
+  // `tab`, so every trip away from the Command Map unmounts this rail. With
+  // local state the items died, the skeleton re-ran and the feed re-fetched on
+  // each return. Store-owned, a remount repaints from memory.
+  const items = useStore((s) => s.newsItems);
   // "live" = really fetched now; "snapshot" = the dated curated set. The
   // rail must never dress one up as the other.
-  const [mode, setMode] = useState<"live" | "snapshot">("snapshot");
+  const mode = useStore((s) => s.newsMode);
+  // Has the feed answered at all yet (either way)? Bones mean "still coming",
+  // so a rail that has genuinely failed must stop pulsing and show its empty
+  // state instead — otherwise a dead SSE + dead fallback pulses forever.
+  const settled = useStore((s) => s.newsSettled);
   const [reconnect, setReconnect] = useState(0);
   // newest-first, defensive (backend already sorts) — drives day grouping
   const sorted = useMemo(
@@ -57,22 +57,25 @@ export default function NewsRail() {
       const next = Array.isArray(raw)
         ? (raw as NewsItem[])
         : ((raw as { items: NewsItem[] }).items ?? []);
-      setItems(next);
-      setMode(
+      const st = useStore.getState();
+      // one write: the rail renders these AND corridor risk derives its news
+      // signal from the same items, so they can never disagree
+      st.setNewsItems(next);
+      st.setNewsSettled(true);
+      st.setNewsMode(
         !Array.isArray(raw) && (raw as { mode?: string }).mode === "live"
           ? "live"
           : "snapshot",
-      );
-      // share the feed: corridor risk derives its news signal from these
-      useStore.getState().setNewsItems(
-        next.map((n) => ({ tag: n.tag, severity: n.severity })),
       );
     };
     const fallback = () =>
       fetch("/news.json")
         .then((r) => r.json())
         .then(apply)
-        .catch(() => setItems([]));
+        .catch(() => {
+          // settled, not loading: stop the bones, show the empty state
+          useStore.getState().setNewsSettled(true);
+        });
 
     const es = new EventSource(SSE_URL);
     es.onmessage = (e) => apply(JSON.parse(e.data));
@@ -125,6 +128,9 @@ export default function NewsRail() {
           </button>
         </span>
       </div>
+      {sorted.length === 0 && !settled ? (
+        <SignalsSkeleton />
+      ) : (
       <ul className="flex flex-col gap-2">
         {sorted.map((n, i) => {
           // day separator: the feed holds up to the last 7 days — label each
@@ -163,6 +169,7 @@ export default function NewsRail() {
           );
         })}
       </ul>
+      )}
     </aside>
   );
 }

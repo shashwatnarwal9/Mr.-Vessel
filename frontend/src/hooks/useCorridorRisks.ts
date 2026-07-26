@@ -3,6 +3,7 @@ import {
   loadCorridorRisks,
   marketSignalFromBrent,
   newsSignalFromHeadlines,
+  peekCorridorRisks,
   sanctionsSignalFromFleet,
   type CorridorRisk,
 } from "../lib/risk";
@@ -20,7 +21,11 @@ export function useLiveCorridorRisks(): {
   risks: CorridorRisk[];
   fleet: ShipFeature[];
 } {
-  const [base, setBase] = useState<CorridorRisk[]>([]);
+  // seed from the module cache so a remount repaints instantly — an empty
+  // initial state would show bones for a frame even though the data is here
+  const [base, setBase] = useState<CorridorRisk[]>(
+    () => peekCorridorRisks() ?? [],
+  );
   const [fleet, setFleet] = useState<ShipFeature[]>([]);
   const ships = useStore((s) => s.ships);
   const newsItems = useStore((s) => s.newsItems);

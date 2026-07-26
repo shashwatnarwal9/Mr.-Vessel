@@ -60,9 +60,14 @@ describe("corridor risk fusion (RA2) — IMMUTABLE checks", () => {
     expect(all.band).toBeLessThan(none.band);
   });
 
-  it("baked snapshot ranks Bab el-Mandeb highest (2026 posture)", () => {
+  // Re-pinned 2026-07-26 (user sign-off): the snapshot's PREMISE changed from
+  // the pre-war 2026 posture to the US-Iran war regime, so Hormuz now leads and
+  // Bab el-Mandeb holds second. Not a weakened check — the ordering below is
+  // pinned two-deep where it used to be pinned one-deep.
+  it("baked snapshot ranks Hormuz highest (US-Iran war regime)", () => {
     const ranked = fuseAll(corridors, weights);
-    expect(ranked[0].corridor.id).toBe("babmandeb");
+    expect(ranked[0].corridor.id).toBe("hormuz");
+    expect(ranked[1].corridor.id).toBe("babmandeb");
     expect(ranked[0].p).toBeGreaterThan(0.3);
     expect(ranked.at(-1)!.p).toBeLessThan(0.05); // Cape ~quiet
   });
@@ -153,8 +158,15 @@ describe("market signal from the live Brent print", () => {
     expect(marketSignalFromBrent(-5, 80)).toBeNull();
   });
 
+  // The war-regime snapshot already prices ~$116 crude (market 0.90), so the
+  // print that demonstrates "raises" has to clear THAT, not the calm $80
+  // baseline — $97 is no longer a spike relative to a Hormuz war. A print below
+  // the snapshot never lowers the score in production: useCorridorRisks refuses
+  // downward substitutions ("absence of evidence in one channel shouldn't
+  // cancel evidence in another").
   it("a wartime crude spike RAISES the corridor's fused probability", () => {
-    const spike = marketSignalFromBrent(97, 80)!;
+    const spike = marketSignalFromBrent(130, 80)!;
+    expect(spike).toBeGreaterThan(hormuz.signals.market);
     expect(refuse(spike)).toBeGreaterThan(refuse(hormuz.signals.market));
   });
 });

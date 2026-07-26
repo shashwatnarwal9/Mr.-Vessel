@@ -158,11 +158,16 @@ body,
   }
 }
 
-/* ---- s0: LIVE pill pulse ---- */
+/* ---- s0: LIVE pill pulse ----
+   Named `livePulse`, NOT `pulse`: Tailwind's `animate-pulse` utility ships its
+   own `@keyframes pulse` (a 50% opacity fade), and a same-named keyframe here
+   collided with it — Tailwind's won, so this green ring never rendered
+   (`rgba(12,163,12)` was absent from the built CSS entirely). The unique name
+   lets both animations exist, and keeps skeleton bones on the opacity fade. */
 .pulse-dot {
-  animation: pulse 2s infinite;
+  animation: livePulse 2s infinite;
 }
-@keyframes pulse {
+@keyframes livePulse {
   0% {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.4);
@@ -174,6 +179,38 @@ body,
   100% {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(12, 163, 12, 0);
+  }
+}
+
+/* ---- ship card attention breathe ----
+   Fires on select and stops ITSELF after 4 x 1.25s = 5s — an iteration count,
+   not a JS timer, so there is no cleanup to leak and no state to re-render.
+   Gold = interactive/live per the M-UI tokens.
+
+   The ring is an INSET outline (offset -2px), not a box-shadow or outward
+   outline: the left rail is `w-80 overflow-y-auto`, which computes overflow-x
+   to auto, so anything drawn outside the border box gets clipped on the left
+   edge. Outline also stays out of layout entirely — a scale() breathe on a
+   backdrop-blur panel would both soften the blur and nudge a scrollbar. ---- */
+.ship-breathe {
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  animation: shipBreathe 1.25s ease-in-out 4;
+}
+@keyframes shipBreathe {
+  0%,
+  100% {
+    outline-color: rgba(255, 185, 86, 0);
+    border-color: var(--color-hairline);
+  }
+  50% {
+    outline-color: rgba(255, 185, 86, 0.6);
+    border-color: var(--color-secondary);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ship-breathe {
+    animation: none;
   }
 }
 

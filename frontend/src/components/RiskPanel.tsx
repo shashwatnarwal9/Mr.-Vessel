@@ -7,6 +7,7 @@ import {
   type Chokepoint,
 } from "../lib/routeGraph";
 import { mapHandle } from "../lib/mapHandle";
+import { RiskSkeleton } from "./Skeletons";
 import { useStore, type ShipFeature } from "../store";
 
 // status ramp (matches the map corridor coloring; no yellow — never
@@ -121,7 +122,9 @@ export default function RiskPanel() {
   const selectedCorridor = useStore((s) => s.selectedCorridor);
   const setSelectedCorridor = useStore((s) => s.setSelectedCorridor);
 
-  if (liveRisks.length === 0) return null;
+  // First load: hold the panel's space with bones instead of returning null.
+  // Popping in from nothing shoved every panel below it down the column.
+  if (liveRisks.length === 0) return <RiskSkeleton />;
 
   return (
     <aside className="flex w-full shrink-0 flex-col rounded-xl border border-hairline bg-panel/90 shadow-2xl backdrop-blur-md">

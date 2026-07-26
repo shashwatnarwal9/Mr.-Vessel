@@ -31,10 +31,19 @@ describe("supplier risk (RA3) — IMMUTABLE checks", () => {
     expect(supplierRisk(oman, corridorP)).toBeCloseTo(oman.sigma_k, 10);
   });
 
-  it("Russia (two hot corridors, chained) outranks Saudi (Hormuz only) under the snapshot", () => {
+  // Re-pinned 2026-07-26 (user sign-off): under the pre-war snapshot Russia's
+  // two chained corridors outranked Saudi's single one. The Hormuz war regime
+  // inverts that, and the inversion is the model working: Saudi is 95% and Iraq
+  // 100% Hormuz-locked, while Russia carries ZERO Hormuz exposure.
+  it("Hormuz-locked suppliers outrank Russia under the war-regime snapshot", () => {
     const rus = suppliers.find((s) => s.id === "russia")!;
     const sau = suppliers.find((s) => s.id === "saudi")!;
-    expect(supplierRisk(rus, corridorP)).toBeGreaterThan(
+    const irq = suppliers.find((s) => s.id === "iraq")!;
+    expect(supplierRisk(sau, corridorP)).toBeGreaterThan(
+      supplierRisk(rus, corridorP),
+    );
+    // Iraq is 100% Hormuz vs Saudi's 95% → strictly the most exposed of the two
+    expect(supplierRisk(irq, corridorP)).toBeGreaterThan(
       supplierRisk(sau, corridorP),
     );
   });
