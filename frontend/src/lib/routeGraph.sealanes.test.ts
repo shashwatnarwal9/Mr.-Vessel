@@ -23,6 +23,12 @@ const LAND: Record<string, [number, number, number, number]> = {
   rubAlKhali: [45, 52, 19, 23], // Empty Quarter (Gulf + Red Sea excluded)
   deccan: [75, 82, 15, 23], // peninsular India
   madagascar: [45, 48, -22, -16],
+  // ADDED: the boxes this set was blind to. The Mediterranean legs sailed over
+  // Tunisia and the Suez transit crossed the Nile Delta for exactly this
+  // reason — nothing here covered North Africa or Egypt.
+  sahara: [2, 24, 22, 30], // Algeria/Libya interior (Gulf of Sidra tops ~31N)
+  tunisia: [8.5, 10.5, 34.8, 36.3], // interior only — Gabès and Hammamet excluded
+  nileDelta: [30.0, 32.0, 29.5, 31.0], // Cairo/Delta, WEST of the canal at 32.3E
 };
 
 const crossesLand = (a: [number, number], b: [number, number]) => {

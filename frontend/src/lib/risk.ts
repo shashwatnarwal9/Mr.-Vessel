@@ -30,6 +30,16 @@ export const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
 const CORROBORATION_THRESHOLD = 0.25;
 
+// Confidence band, in probability points.
+//
+// MAX was 0.15, which put +-15 on a corridor reading 2% — an interval running
+// to -13%, i.e. a negative probability. Two changes: a tighter ceiling, and a
+// HEADROOM clamp so the band can never exceed the room left to 0 or 1. A quiet
+// corridor is not uncertain by 15 points; it simply has nowhere to go.
+const BAND_MAX = 0.1;
+const BAND_MIN = 0.03; // floor: never claim more precision than this model has
+const BAND_STEP = 0.03; // shrink per corroborating signal
+
 export function fuseCorridor(c: Corridor, w: Weights): CorridorRisk {
   const entries = Object.entries(c.signals) as [keyof Weights, number][];
   const contributions = entries.map(([signal, value]) => ({
@@ -40,11 +50,16 @@ export function fuseCorridor(c: Corridor, w: Weights): CorridorRisk {
   const x = logit(c.p0) + contributions.reduce((s, t) => s + t.logOdds, 0);
   const p = sigmoid(x);
 
-  // confidence: band shrinks as independent signals corroborate
+  // confidence: band shrinks as independent signals corroborate, then is capped
+  // by how much room the probability actually has left on either side
   const corroborating = entries.filter(
     ([, v]) => v >= CORROBORATION_THRESHOLD,
   ).length;
-  const band = Math.max(0.03, 0.15 - 0.03 * corroborating);
+  const headroom = Math.min(p, 1 - p);
+  const band = Math.max(
+    BAND_MIN,
+    Math.min(BAND_MAX - BAND_STEP * corroborating, headroom),
+  );
 
   return { corridor: c, p, band, contributions };
 }

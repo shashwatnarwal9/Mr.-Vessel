@@ -16,6 +16,19 @@ import PageIntro from "./PageIntro";
 const API = import.meta.env.VITE_API_HTTP ?? "http://localhost:8000";
 const SPEED_NM_PER_DAY_BASE = 24;
 
+/** Route map HIDDEN (kill criterion, C2: drop the card, core untouched).
+ *
+ *  The waypoint graph is coarse — legs are straight lines between sparse nodes,
+ *  so long ocean routes still render visibly over land even after the Med and
+ *  Suez lanes were fixed. A map that draws a tanker across the Sahara discredits
+ *  the numbers beside it, which ARE sound: the run still computes added days,
+ *  freight delta and the cuOpt cross-check, all from the same graph distances.
+ *
+ *  Nothing is deleted — every draw call already no-ops on a null map ref, so
+ *  flipping this back to `true` restores the map once the graph has enough
+ *  waypoints to be honest at world scale. */
+const SHOW_ROUTE_MAP = false;
+
 /** short label for a loaded ship's effect (matches impact.ts semantics) */
 function effectLabel(e: { kind: string; chokepoint?: string; delayDays?: number }): string {
   switch (e.kind) {
@@ -715,6 +728,7 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
         </div>
 
         {/* map hero: live maplibre canvas with Stitch chrome */}
+        {SHOW_ROUTE_MAP && (
         <div className="relative flex-grow overflow-hidden rounded-lg border border-hairline bg-navy-deep">
           <div
             ref={mapDiv}
@@ -768,6 +782,7 @@ export default function ShipSimulator({ onLoad }: { onLoad?: () => void } = {}) 
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );
