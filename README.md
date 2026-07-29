@@ -1,4 +1,8 @@
 # Mr. Vessel 🚢
+[![🚢 Try Mr. Vessel Live](https://img.shields.io/badge/🚢_Try_it_live-mr--vessel--web.onrender.com-orange?style=for-the-badge)](https://mr-vessel-web.onrender.com/)
+![Node](https://img.shields.io/badge/node-20%2B-blue)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **The oil crisis, simulated before it's real.**
 
