@@ -21,8 +21,7 @@ export function useLiveCorridorRisks(): {
   risks: CorridorRisk[];
   fleet: ShipFeature[];
 } {
-  // seed from the module cache so a remount repaints instantly — an empty
-  // initial state would show bones for a frame even though the data is here
+  // seed from the module cache so a remount repaints without a bones frame
   const [base, setBase] = useState<CorridorRisk[]>(
     () => peekCorridorRisks() ?? [],
   );

@@ -16,6 +16,22 @@ TICK_S = 2.0
 STALE_S = 30 * 60  # drop live vessels not heard from in 30 min
 MAX_FLEET = 400  # newest-N cap; spatial index if the fleet outgrows it
 
+# European receivers are dense and update constantly (East Med 231, Black Sea
+# 73) while the Gulf sees almost nothing, so oldest-first eviction threw away
+# the rare corridor fix. These are evicted last.
+CORRIDOR_BOXES = [
+    (6, 66, 37, 98),  # India + approaches
+    (12, 32, 31, 44),  # Red Sea / Suez / Bab-el-Mandeb
+    (22, 46, 31, 60),  # Persian Gulf load ports
+]
+
+
+def in_corridor(lon: float, lat: float) -> bool:
+    return any(
+        lat0 <= lat <= lat1 and lon0 <= lon <= lon1
+        for lat0, lon0, lat1, lon1 in CORRIDOR_BOXES
+    )
+
 
 def dead_reckon(feature: dict[str, Any], dt_s: float) -> None:
     """Advance one GeoJSON ship feature along course at speed (in place)."""
@@ -100,7 +116,13 @@ class VesselManager:
             evictable = [
                 (m, t) for m, t in self._seen.items() if m not in self._baked_ids
             ]
-            for m, _ in sorted(evictable, key=lambda kv: kv[1])[
+            # corridor vessels last: sort non-corridor first, then oldest-seen
+            def rank(kv: tuple[int, float]) -> tuple[bool, float]:
+                f = self._fleet.get(kv[0])
+                lon, lat = f["geometry"]["coordinates"] if f else (0.0, 0.0)
+                return (in_corridor(lon, lat), kv[1])
+
+            for m, _ in sorted(evictable, key=rank)[
                 : len(self._fleet) - MAX_FLEET
             ]:
                 self._fleet.pop(m, None)
@@ -176,4 +198,11 @@ if __name__ == "__main__":
     vm2._evict()
     assert 100 not in vm2._fleet, "stale live vessel should evict"
     assert 200 in vm2._fleet, "baked vessel must never evict"
+    # corridor vessels survive the cap: dense European traffic must not evict
+    # the rare Gulf/India fix this product exists to show
+    assert in_corridor(56.5, 26.4)      # Strait of Hormuz
+    assert in_corridor(72.0, 20.0)      # Arabian Sea, India approach
+    assert in_corridor(43.4, 12.6)      # Bab-el-Mandeb
+    assert not in_corridor(33.0, 34.7)  # Limassol, Cyprus (East Med)
+    assert not in_corridor(27.9, 43.2)  # Varna, Black Sea
     print("vessels OK")

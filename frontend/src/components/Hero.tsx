@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTween } from "../lib/tween";
+import { useStore } from "../store"; // no maplibre — safe for the landing bundle
 import { HISTORICAL_SHOCKS } from "../lib/history"; // count only, corpus stays unbundled
 
 /** Landing: the film plays once through, the copy and counters arrive over it,
@@ -19,16 +20,38 @@ const DRIVE_URL =
 const TEAM = ["Shashwat Narwal", "Aashna", "Dhruv Bansal", "Ridhi Garg"];
 
 // Counted from the shipped data, not marketing figures:
-//   ships.json → 54 vessels in the tracked fleet (live AIS overlays this by MMSI)
 //   corridors.json → 5 chokepoints
 //   history_corpus.json → 28 episodes the analog retrieval searches (1956–2024),
 //     asserted against the corpus in history.test.ts so it can't drift
 // (the 5,388 figure elsewhere is the SCREENING index, a different claim)
-const STATS: { label: string; value: number; icon: string }[] = [
-  { label: "vessels tracked", value: 54, icon: "directions_boat" },
-  { label: "corridors watched", value: 5, icon: "conversion_path" },
-  { label: "historical shocks", value: HISTORICAL_SHOCKS, icon: "history" },
-];
+const CORRIDORS_WATCHED = 5;
+
+// Snapshot, not a ticker — the hero counter shouldn't re-count as AIS lands.
+// Hero unmounts when you enter the map, so returning re-reads it.
+function useVesselCount(): number {
+  const ships = useStore((s) => s.ships);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (count) return;
+    if (ships?.features.length) {
+      setCount(ships.features.length);
+      return;
+    }
+    let alive = true;
+    fetch("/ships.json")
+      .then((r) => r.json())
+      .then((f) => {
+        if (alive) setCount(f.features?.length ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [ships, count]);
+
+  return count;
+}
 
 /** fade + rise + un-blur, staggered by `step` (ms) once `on` flips */
 const revealCls = (on: boolean, step: number) => ({
@@ -70,6 +93,12 @@ function StatCard({
 
 export default function Hero({ onEnter }: { onEnter: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const vessels = useVesselCount();
+  const stats = [
+    { label: "vessels tracked", value: vessels, icon: "directions_boat" },
+    { label: "corridors watched", value: CORRIDORS_WATCHED, icon: "conversion_path" },
+    { label: "historical shocks", value: HISTORICAL_SHOCKS, icon: "history" },
+  ];
 
   // Reduced motion holds a still frame instead of looping video. (Playback is
   // left at the native 1.0x — no rate override.)
@@ -207,7 +236,7 @@ export default function Hero({ onEnter }: { onEnter: () => void }) {
 
         {/* counters — land at 1.5s and count up over the next second */}
         <div className="mt-8 flex flex-wrap items-stretch justify-center gap-x-12 gap-y-4">
-          {STATS.map((s, i) => (
+          {stats.map((s, i) => (
             <StatCard
               key={s.label}
               label={s.label}

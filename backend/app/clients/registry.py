@@ -292,10 +292,8 @@ def build_clients() -> dict[str, Any]:
     from .gdelt_news import GdeltGlmNews
 
     llm = NvidiaLLM() if NVIDIA_API_KEY else StubLLM()
-    # The news tagger gets its OWN client on a fast classification model. Sharing
-    # `llm` meant headline tagging paid GLM-5.2's reasoning phase (~110s for 20
-    # headlines vs ~20s), which is what made the rail lag minutes behind a
-    # restart. GLM stays on `llm` for RAG narration, where reasoning is the point.
+    # tagging is classification, not reasoning: sharing `llm` made it pay
+    # GLM's think phase (~110s per 20 headlines vs ~20s)
     tagger = NvidiaLLM(model=TAG_MODEL) if NVIDIA_API_KEY else StubLLM()
     return {
         "llm": llm,

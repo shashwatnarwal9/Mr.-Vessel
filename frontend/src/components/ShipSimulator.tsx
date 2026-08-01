@@ -16,11 +16,9 @@ import PageIntro from "./PageIntro";
 const API = import.meta.env.VITE_API_HTTP ?? "http://localhost:8000";
 const SPEED_NM_PER_DAY_BASE = 24;
 
-/** Route map hidden. The waypoint graph draws straight legs between sparse
- *  nodes, so long ocean routes still render over land at world scale. The
- *  numbers beside it are unaffected - added days, freight and the cuOpt
- *  cross-check all come from graph DISTANCES, not the drawn polyline. Every
- *  draw call no-ops on a null map ref, so flipping this back restores it. */
+/** Hidden: the waypoint graph draws straight legs between sparse nodes, so
+ *  ocean routes cross land at world scale. The numbers are unaffected —
+ *  they come from graph distances, not the drawn line. */
 const SHOW_ROUTE_MAP = false;
 
 /** short label for a loaded ship's effect (matches impact.ts semantics) */

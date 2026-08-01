@@ -73,14 +73,14 @@ export default function ShipPanel() {
   const added = rerouted ? pi * rerouteDelta("hormuz").addedDays : 0;
 
   return (
-    // key on the ROOT element is what re-arms the breathe: switching ships
-    // reuses this DOM node otherwise, and a CSS animation only restarts on a
-    // fresh node. Close-then-reopen already remounts (the `!ship` guard above
-    // returns null), so both paths animate.
+    // key re-arms the breathe: switching ships reuses this node otherwise, and
+    // a CSS animation only restarts on a fresh one
     <aside
       key={ship.mmsi}
       ref={panelRef}
-      className="ship-breathe flex w-full shrink-0 flex-col gap-3 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md"
+      className={`ship-breathe flex w-full shrink-0 flex-col gap-3 rounded-xl border border-hairline bg-panel/90 p-4 shadow-2xl backdrop-blur-md ${
+        screen?.status === "match" ? "breathe-alert" : ""
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col">

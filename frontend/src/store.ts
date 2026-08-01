@@ -106,10 +106,8 @@ type State = {
   setShips: (fc: ShipsFC, mode: "live" | "baked") => void;
   screening: { screened: number; matched: number } | null; // coverage honesty
   setScreening: (s: { screened: number; matched: number }) => void;
-  // Live headline feed. Holds the FULL item, not just {tag, severity}: the
-  // Command Map wrapper is keyed on `tab`, so leaving it unmounts the rail.
-  // Component-local state died on every tab switch, re-showing the skeleton
-  // and re-fetching. Store-owned, a remount repaints instantly.
+  // Full items, not just {tag, severity}: the Command Map wrapper is keyed on
+  // `tab`, so local state died on every tab switch and re-fetched.
   newsItems: NewsItem[];
   setNewsItems: (n: NewsItem[]) => void;
   newsMode: "live" | "snapshot";

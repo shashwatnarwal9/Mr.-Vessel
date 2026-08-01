@@ -1,8 +1,7 @@
 // RA2: corridor disruption probability — Bayesian log-odds fusion of
 // four normalized signals over a cited base-rate prior. MVP runs on the
 // BAKED signal snapshot in corridors.json; live mode (RA5) swaps the
-// snapshot for computed signals, same math. Simplest correct version
-// no Hawkes term yet — that is RA4's layer.
+// snapshot for computed signals, same math. No Hawkes term yet — that is RA4's.
 
 export type Corridor = {
   id: string;
@@ -30,9 +29,8 @@ export const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
 const CORROBORATION_THRESHOLD = 0.25;
 
-// Confidence band, in probability points. MAX was 0.15, which put +-15 on a
-// corridor reading 2% - an interval running to -13%. The headroom clamp below
-// stops the band exceeding the room left to 0 or 1.
+// Band in probability points. 0.15 put +-15 on a 2% corridor, an interval
+// running to -13%; the headroom clamp keeps it inside [0,1].
 const BAND_MAX = 0.1;
 const BAND_MIN = 0.03;
 const BAND_STEP = 0.03;

@@ -122,8 +122,7 @@ export default function RiskPanel() {
   const selectedCorridor = useStore((s) => s.selectedCorridor);
   const setSelectedCorridor = useStore((s) => s.setSelectedCorridor);
 
-  // First load: hold the panel's space with bones instead of returning null.
-  // Popping in from nothing shoved every panel below it down the column.
+  // bones hold the panel's space; returning null shoved the column down
   if (liveRisks.length === 0) return <RiskSkeleton />;
 
   return (

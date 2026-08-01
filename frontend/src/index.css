@@ -159,11 +159,8 @@ body,
 }
 
 /* ---- s0: LIVE pill pulse ----
-   Named `livePulse`, NOT `pulse`: Tailwind's `animate-pulse` utility ships its
-   own `@keyframes pulse` (a 50% opacity fade), and a same-named keyframe here
-   collided with it — Tailwind's won, so this green ring never rendered
-   (`rgba(12,163,12)` was absent from the built CSS entirely). The unique name
-   lets both animations exist, and keeps skeleton bones on the opacity fade. */
+   Named livePulse, not pulse: Tailwind's animate-pulse ships its own
+   @keyframes pulse, and the collision meant this green ring never rendered. */
 .pulse-dot {
   animation: livePulse 2s infinite;
 }
@@ -182,30 +179,32 @@ body,
   }
 }
 
-/* ---- ship card attention breathe ----
-   Fires on select and stops ITSELF after 4 x 1.25s = 5s — an iteration count,
-   not a JS timer, so there is no cleanup to leak and no state to re-render.
-   Gold = interactive/live per the M-UI tokens.
-
-   The ring is an INSET outline (offset -2px), not a box-shadow or outward
-   outline: the left rail is `w-80 overflow-y-auto`, which computes overflow-x
-   to auto, so anything drawn outside the border box gets clipped on the left
-   edge. Outline also stays out of layout entirely — a scale() breathe on a
-   backdrop-blur panel would both soften the blur and nudge a scrollbar. ---- */
+/* Ship card breathe: 4 x 1.25s stops itself, no JS timer. Inset outline —
+   the left rail is overflow-y-auto, so anything outside the border box clips. */
 .ship-breathe {
-  outline: 2px solid transparent;
-  outline-offset: -2px;
+  --breathe-rgb: 255, 185, 86;
+  --breathe-wash: 38, 29, 14;
+  outline: 3px solid transparent;
+  outline-offset: -3px;
   animation: shipBreathe 1.25s ease-in-out 4;
+}
+/* watchlist vessels breathe RED — a colour swap, not a second animation, so
+   screening can land mid-cycle without restarting it */
+.ship-breathe.breathe-alert {
+  --breathe-rgb: 208, 59, 59;
+  --breathe-wash: 42, 17, 17;
 }
 @keyframes shipBreathe {
   0%,
   100% {
-    outline-color: rgba(255, 185, 86, 0);
+    outline-color: rgba(var(--breathe-rgb), 0);
     border-color: var(--color-hairline);
+    background-color: rgba(10, 14, 23, 0.9);
   }
   50% {
-    outline-color: rgba(255, 185, 86, 0.6);
-    border-color: var(--color-secondary);
+    outline-color: rgba(var(--breathe-rgb), 0.5);
+    border-color: rgba(var(--breathe-rgb), 0.7);
+    background-color: rgba(var(--breathe-wash), 0.92);
   }
 }
 @media (prefers-reduced-motion: reduce) {

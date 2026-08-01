@@ -22,14 +22,9 @@ describe("east-coast routing rounds Sri Lanka (never crosses land)", () => {
   });
 });
 
-/** Routing around the island is worthless if a hull is PARKED on it — the demo
- *  map centres on this water, so a ship in the hill country is the first thing
- *  a viewer sees. MT CRIMSON STAR shipped at [80.578, 6.489] (~60km inland,
- *  right latitude drift off the DONDRA_HEAD lane at [80.6, 5.4]).
- *
- *  The outline is INSET ~0.2° from the true coast, so it only ever flags
- *  clearly-inland points — a legitimate harbour or near-shore fix stays green.
- *  Ray casting, the standard even-odd rule. */
+/** Routing around the island is worthless if a hull is parked on it. Outline is
+ *  inset ~0.2 deg from the coast, so only clearly-inland points are flagged and
+ *  a harbour fix stays green. Ray casting, even-odd rule. */
 const SRI_LANKA_INLAND: [number, number][] = [
   [80.15, 9.45],
   [80.85, 9.05],

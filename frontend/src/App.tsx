@@ -5,6 +5,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useStore, type Tab } from "./store";
 import Hero from "./components/Hero";
+import { useShipsFeed } from "./hooks/useShipsFeed";
 import CommandPalette from "./components/CommandPalette";
 import SearchBar from "./components/SearchBar";
 import PresetMenu from "./components/PresetMenu";
@@ -22,6 +23,9 @@ const HASH_TO_TAB = Object.fromEntries(TABS.map((t) => [t.hash, t.tab]));
 
 export default function App() {
   const tab = useStore((s) => s.tab);
+  // Fleet streams from page load, so the landing counter and the map read the
+  // same store. useShipsFeed pulls in no maplibre, so the bundle is unaffected.
+  useShipsFeed();
   // a11y: high-contrast mode (persisted; brightens secondary inks)
   const [hc, setHc] = useState(() => localStorage.getItem("mrvessel.hc") === "1");
   useEffect(() => {

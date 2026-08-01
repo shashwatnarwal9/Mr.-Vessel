@@ -1,10 +1,6 @@
-/** First-load skeletons for the Command Map rails.
- *
- *  Bones mirror the real rows (paddings, dot size, dividers) so the swap to
- *  real data does not shift layout. RiskPanel returns null while loading so its
- *  skeleton supplies the panel shell; NewsRail renders its own header, so its
- *  skeleton replaces only the list. `animate-pulse` is already zeroed under
- *  prefers-reduced-motion in index.css. */
+/** Bones mirror the real rows so the swap to real data doesn't shift layout.
+ *  RiskPanel returns null while loading, so its skeleton supplies the panel
+ *  shell; NewsRail renders its own header, so this replaces just the list. */
 
 // bone fill: reads on --color-panel #0a0e17 without competing with real content
 const BONE = "rounded bg-white/[0.07]";

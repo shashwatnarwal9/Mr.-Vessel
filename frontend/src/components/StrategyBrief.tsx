@@ -32,11 +32,9 @@ export function Underline() {
 
 const GOLD = "#c98500";
 
-/** Glass surface, defined once so every panel in the brief matches.
- *
- *  A WHITE tint, not a darker navy: lowering a dark colour's alpha over a dark
- *  page barely changes it. Glass reads from a top-lit film, a bright hairline
- *  edge and enough backdrop blur to diffuse rather than dim. */
+/** Glass, defined once so every panel in the brief matches. A white tint, not
+ *  a darker navy — lowering a dark colour's alpha over a dark page does almost
+ *  nothing. The top-lit film and bright edge are what read as glass. */
 const GLASS =
   "rounded-lg border border-white/15 bg-gradient-to-b from-white/10 to-white/[0.03] " +
   "backdrop-blur-xl shadow-lg shadow-black/20 transition-colors duration-300 " +

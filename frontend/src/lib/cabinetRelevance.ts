@@ -1,13 +1,7 @@
-// Is a typed prompt something the War Cabinet can deliberate on?
-//
-// `sendPrompt` only parsed the crisis when NO dashboard shock was committed, so
-// with one set the text passed through as a label and ministers answered the
-// SCENARIO instead ("i am hungry" produced a Hormuz policy). Deterministic and
-// client-side: three queued models would take minutes to say "no", and this
-// still answers instantly when the API is cold.
-//
-// Biased to ALLOW - a false reject blocks a real question, which is worse.
-// TODO: revisit only if real questions get bounced.
+// Does this prompt give the cabinet anything to deliberate on? Without it,
+// "i am hungry" reached three ministers and came back as a Hormuz policy.
+// Deterministic and client-side: queued models take minutes to say "no".
+// Biased to allow — bouncing a real question is the worse failure.
 
 const DOMAIN =
   /hormuz|red ?sea|bab[- ]?el|mandeb|suez|malacca|cape|strait|chokepoint|corridor|gulf|persian|arabian|\b(iran|iraq|saudi|uae|kuwait|oman|qatar|russia|nigeria|houthi|yemen|india|china|opec)\b|\boil\b|crude|petrol|diesel|\bfuel\b|\bgas\b|\blng\b|brent|barrel|\bbbl\b|refin|suppl|shortfall|import|export|cargo|tanker|\bship|vessel|freight|shipping|reroute|\broute|transit|convoy|escort|\bport\b|terminal|\bspr\b|reserve|stockpile|diplomat|negotiat|escalat|sanction|embargo|tariff|naval|\bnavy\b|militar|strike|blockad|mitigat|re-?sourc|allocat|price|inflation|\bgdp\b|growth|economy|\bcost|impact|\brisk|stress|grid|power|electric|minister|cabinet|\bplan\b|option|recommend|advis|decide|decision|strateg|scenario|what if|should we|alternativ|shock|closure|disrupt/i;

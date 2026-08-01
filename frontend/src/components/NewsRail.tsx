@@ -15,8 +15,7 @@ const SEV: Record<number, string> = {
 const SSE_URL =
   (import.meta.env.VITE_API_HTTP ?? "http://localhost:8000") + "/sse/news";
 
-// Bones give way to the static snapshot after this. A warm backend pushes in
-// ~50ms, so it only fires for a cold API.
+// A warm backend pushes in ~50ms, so this only fires for a cold API.
 const COLD_START_MS = 3500;
 
 const dayKey = (ts: string) => new Date(ts).toDateString();
@@ -35,17 +34,13 @@ const dayLabel = (ts: string) => {
 };
 
 export default function NewsRail() {
-  // Feed state lives in the STORE, not here: CommandApp keys its wrapper on
-  // `tab`, so every trip away from the Command Map unmounts this rail. With
-  // local state the items died, the skeleton re-ran and the feed re-fetched on
-  // each return. Store-owned, a remount repaints from memory.
+  // Store-owned: CommandApp keys its wrapper on `tab`, so local state died on
+  // every trip away and the rail re-ran its skeleton on return.
   const items = useStore((s) => s.newsItems);
   // "live" = really fetched now; "snapshot" = the dated curated set. The
   // rail must never dress one up as the other.
   const mode = useStore((s) => s.newsMode);
-  // Has the feed answered at all yet (either way)? Bones mean "still coming",
-  // so a rail that has genuinely failed must stop pulsing and show its empty
-  // state instead — otherwise a dead SSE + dead fallback pulses forever.
+  // has the feed answered either way? separates "still coming" from "empty"
   const settled = useStore((s) => s.newsSettled);
   const [reconnect, setReconnect] = useState(0);
   // newest-first, defensive (backend already sorts) — drives day grouping
@@ -61,9 +56,8 @@ export default function NewsRail() {
       const next = Array.isArray(raw)
         ? (raw as NewsItem[])
         : ((raw as { items: NewsItem[] }).items ?? []);
+      // one write: the rail and the corridor news signal read the same items
       const st = useStore.getState();
-      // one write: the rail renders these AND corridor risk derives its news
-      // signal from the same items, so they can never disagree
       st.setNewsItems(next);
       st.setNewsSettled(true);
       st.setNewsMode(
@@ -72,9 +66,8 @@ export default function NewsRail() {
           : "snapshot",
       );
     };
-    // NEVER REGRESS: the snapshot only ever fills an EMPTY rail. This used to
-    // overwrite unconditionally, so one blip on the SSE replaced live headlines
-    // with the dated baked file and only the manual refresh recovered.
+    // Only ever fills an EMPTY rail. It used to overwrite, so one SSE blip
+    // swapped live headlines for the dated file until a manual refresh.
     const fallback = () => {
       if (useStore.getState().newsItems.length) return Promise.resolve();
       return fetch("/news.json")
@@ -89,17 +82,13 @@ export default function NewsRail() {
     const es = new EventSource(SSE_URL);
     es.onmessage = (e) => apply(JSON.parse(e.data));
     es.onerror = () => {
-      // deliberately NOT es.close(): closing disables EventSource's built-in
-      // auto-reconnect, which is what left the rail stuck until a manual
-      // refresh. Left open it self-heals when the backend returns; the
-      // snapshot below only shows if nothing has arrived yet.
+      // not es.close(): that kills EventSource's auto-reconnect, which is what
+      // left the rail stuck until a manual refresh.
       void fallback();
     };
 
-    // Cold-start race. On a sleeping API (Render free tier) EventSource
-    // neither delivers nor fires onerror for ~50s, so onerror-only recovery
-    // never triggers. Paint the snapshot instead; the SSE stays open so the
-    // first push upgrades it. Only ever fills an EMPTY rail.
+    // A sleeping API (Render free tier) neither delivers nor errors for ~50s,
+    // so onerror alone never fires. Paint the snapshot; the SSE stays open.
     const coldStart = setTimeout(() => {
       if (!useStore.getState().newsSettled) void fallback();
     }, COLD_START_MS);
