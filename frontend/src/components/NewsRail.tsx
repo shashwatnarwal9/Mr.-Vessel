@@ -72,20 +72,28 @@ export default function NewsRail() {
           : "snapshot",
       );
     };
-    const fallback = () =>
-      fetch("/news.json")
+    // NEVER REGRESS: the snapshot only ever fills an EMPTY rail. This used to
+    // overwrite unconditionally, so one blip on the SSE replaced live headlines
+    // with the dated baked file and only the manual refresh recovered.
+    const fallback = () => {
+      if (useStore.getState().newsItems.length) return Promise.resolve();
+      return fetch("/news.json")
         .then((r) => r.json())
         .then(apply)
         .catch(() => {
           // settled, not loading: stop the bones, show the empty state
           useStore.getState().setNewsSettled(true);
         });
+    };
 
     const es = new EventSource(SSE_URL);
     es.onmessage = (e) => apply(JSON.parse(e.data));
     es.onerror = () => {
-      es.close();
-      fallback();
+      // deliberately NOT es.close(): closing disables EventSource's built-in
+      // auto-reconnect, which is what left the rail stuck until a manual
+      // refresh. Left open it self-heals when the backend returns; the
+      // snapshot below only shows if nothing has arrived yet.
+      void fallback();
     };
 
     // Cold-start race. On a sleeping API (Render free tier) EventSource

@@ -13,7 +13,6 @@ import ShipPanel from "./components/ShipPanel";
 import AlertStack from "./components/AlertStack";
 import NewsRail from "./components/NewsRail";
 import { useShipsFeed } from "./hooks/useShipsFeed";
-import KGPanel from "./components/KGPanel";
 import { useFusionFeed } from "./hooks/useFusionFeed";
 import LayerToggle from "./components/LayerToggle";
 import RiskPanel from "./components/RiskPanel";
@@ -181,9 +180,9 @@ export default function CommandApp() {
               ◂ signals
             </button>
           )}
-          <div className={`${recede} ${dim}`}>
-            <KGPanel />
-          </div>
+          {/* Supplier -> Sector cascade carousel removed from the Command Map.
+              KGPanel and its /kg/cascade endpoint are untouched, so restoring
+              it is re-adding this one element. */}
           <NarrativeCard />
         </>
       )}
