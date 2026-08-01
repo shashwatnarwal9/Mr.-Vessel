@@ -3,8 +3,12 @@
 import { useEffect } from "react";
 import { useStore, type ShipsFC } from "../store";
 
+// VITE_API_WS is an ORIGIN (render.yaml sets it without a path), so the route
+// is appended here — same shape as VITE_API_HTTP everywhere else. Baking the
+// path into the fallback instead made this work locally and fail only on
+// deploy, where the socket hit the bare origin and fell back to ships.json.
 const WS_URL =
-  import.meta.env.VITE_API_WS ?? "ws://localhost:8000/ws/ships";
+  (import.meta.env.VITE_API_WS ?? "ws://localhost:8000") + "/ws/ships";
 
 // A berth is on land, so moored vessels render as ships sitting on the quay.
 // Measured 235 of 400. A corridor map wants vessels under way.
